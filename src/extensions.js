@@ -1,19 +1,6 @@
 import { xnew } from './core';
 
 //--------------------------------------------------------------------------------
-// utils
-//--------------------------------------------------------------------------------
-
-export const device = {
-    isPC() {
-        return navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/) ? false : true;
-    },
-    isMobile() {
-        return navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/) ? true : false;
-    },
-}
-
-//--------------------------------------------------------------------------------
 // screen
 //--------------------------------------------------------------------------------
 
@@ -42,9 +29,7 @@ export function Screen({ width, height }) {
     win.emit('resize');
 
     return {
-        canvas: {
-            get: () => canvas.element,
-        }
+        canvas: { get: () => canvas.element, }
     }
 }
 
@@ -156,28 +141,6 @@ export function AudioController() {
 }
 
 //--------------------------------------------------------------------------------
-// keyborad
-//--------------------------------------------------------------------------------
-
-export function Keyboard({ }) {
-    const keys = {};
-
-    const win = xnew(window);
-    win.on('keydown', (event) => {
-        keyChange(event, 1);
-        this.emit('keydown', event, { keys });
-    });
-    win.on('keyup', (event) => {
-        keyChange(event, 0);
-        this.emit('keyup', event, { keys });
-    });
-
-    function keyChange (event, state) {
-        keys[event.key] = state;
-    }
-}
-
-//--------------------------------------------------------------------------------
 // analog stick
 //--------------------------------------------------------------------------------
 
@@ -211,7 +174,7 @@ export function AnalogStick({ size = 160, fill = '#FFF', fillOpacity = 0.8, stro
         const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
         const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
         const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-        this.emit('analogstick' + phase, event, { type: 'analogstick' + phase, vector });
+        this.emit('stick' + phase, event, { type: 'stick' + phase, vector });
         [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
     });
 
@@ -220,7 +183,7 @@ export function AnalogStick({ size = 160, fill = '#FFF', fillOpacity = 0.8, stro
 
         const vector = { x: 0, y: 0 };
 
-        this.emit('analogstickend', event, { type: 'analogstickend', vector });
+        this.emit('stickend', event, { type: 'stickend', vector });
         [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
     });
 }

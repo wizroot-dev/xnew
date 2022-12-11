@@ -43,10 +43,10 @@ export class Node {
             this._.base = element;
             this.element = this._.base;
         } else if (typeof element === 'object' && element !== null) {
-            this._.base = this.parent?.element ?? document.body;
+            this._.base = this.parent ? this.parent.element : document.body;
             this.element = this._.base.appendChild(createElementWithAttributes(element));
         } else {
-            this._.base = this.parent?.element ?? document.body;
+            this._.base = this.parent ? this.parent.element : document.body;
             this.element = this._.base;
         }
 
