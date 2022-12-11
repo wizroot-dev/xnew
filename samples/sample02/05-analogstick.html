@@ -48,10 +48,10 @@
             graphics.endFill();
 
             let move = null;
-            this.global.stick.on('analogstickstart analogstickmove', (event, ex) => {
+            this.global.stick.on('stickstart stickmove', (event, ex) => {
                 move = { x: ex.vector.x, y: ex.vector.y };
             });
-            this.global.stick.on('analogstickend', (event, ex) => {
+            this.global.stick.on('stickend', (event, ex) => {
                 move = { x: 0, y: 0 };
             });
             return {
