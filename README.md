@@ -1,8 +1,8 @@
 # xnew
 Simple component based library.  
-Useful for creating apps or games with dynamic scenes.
+Useful for creating apps and games with dynamic scenes.
 
-## Installation
+## Setup
 - via cdn  
   
 ```
@@ -18,14 +18,14 @@ npm install xnew
 Before describing the specifications, let's first look the features with some samples.
 
 ### Component based  
-The following sample creates a button element that count up when clicked. You can manage it as a separate component. 
+The following sample creates a button element that count clicks. Component based description like this, is easy to manage and extend programs because each function can be managed independently.
 
 ```
 const button = xnew(MyButton, { text: 'click me!' });
 
 // ...
 
-// component function
+// component
 function MyButton({ text }) {
     this.nest({ tag: 'button', style: 'padding: 8px;' }, text);
     let counter = 0;
@@ -35,7 +35,7 @@ function MyButton({ text }) {
 }
 ```
 
-### Cooperation with rendering libraries
+### Collaboration with rendering libraries
 Works well with rendering libraries like three.js and pixi.js. The following samples creates a animating object using three.js and pixi.js.
 
 ![three](./images/three.gif)
@@ -141,61 +141,52 @@ function MyBox({ scene }) {
 //           2. component: function, props: object
 ```
 
-As shown above, xnew accepts arguments `parent`, `element`, `content`.  
+As shown above, xnew accepts arguments (`parent`, `element`, `content`).  
 
 - `parent` is a parameter that is set as the parent node. In many cases, it is omitted, and set automatically. so the details are described later.
-- `element` is a parameter for element to associate with new node. If you omit this parameter, new node's element inherits the parent node's element. If there is no parent node, it inherits `document.body` element.
-- `content` is the content of the node. There are two patterns. First pattern is innerHTML for new element. Second pattern is component function and its properties.  
+- `element` is a parameter for html element to associate with new node. If you omit this parameter, new node's element inherits the parent node's element. If there is no parent node, it inherits `document.body` element.
+- `content` is a parameter that set the behavior of the node. There are two patterns. First pattern is innerHTML for new element. Second pattern is component function and its properties.  
 **Note that you have to use `function` keyword as component function, not `() => {} (arrow function)`**. This is because to bind `this` pointer in the function.
 
 ### #1
 If you call `xnew` like nesting, created nodes have a parent-child relationship.
+
 ```
 <body>
 <div id="hoge"></div>
 
 <script>
     const node1 = xnew(document.querySelector('#hoge'), function () {
-        this;         // node1
-        this.parent;  // null
-        this.element; // hoge
+        // this: node1, this.parent: null, this.element: hoge
 
         const node2 = xnew(function () {
-            this;         // node2
-            this.parent;  // node1
-            this.element; // hoge (equal to parent's element)
+            // this: node2, this.parent: node1, this.element: hoge (equal to parent's element)
         });
 
         const node3 = xnew({ tag: 'div', id: 'fuga' }, function () {
-            this;         // node3
-            this.parent;  // node1
-            this.element; // fuga (new element as a child element of hoge)
+            // this: node3, this.parent: node1, this.element: fuga (as a child element of hoge)
         });
 
         const node4 = xnew(function () {
             // create new element and replace this.element
             this.nest({ tag: 'div', id: 'piyo' };
 
-            this;         // node4
-            this.parent;  // node1
-            this.element; // piyo (new element as a child element of hoge)
+            // this: node4, this.parent: node1, this.element: piyo (as a child element of hoge)
         });
     });
 
     const node5 = xnew(function () {
-        this;         // node5
-        this.parent;  // null
-        this.element; // document.body
+        // this: node5, this.parent: null, this.element: document.body
     });
 </script>
 </body>
 ```
 - If you omit `element`, new node's element is set automatically (e.g. node2, node4, node5). 
-- Note that `this` pointer is a different value depending on where it is used.
+- Note that `this` pointer is a different value depending on the scope.
 
 
 ### #2
-a node has some functions by default. You can define the detail using thre response of component function.
+A node has some functions by default. You can define the detail by using the returned object of the component function.
 
 ```
 const node = xnew(function () {
@@ -227,10 +218,9 @@ node.finalize(); // created element and child nodes will be deleted
 node.isStarted();   // return boolean 
 node.isStopped();   // ...
 node.isFinalized(); // ...
-
 ```
 
-- By default, nodes automatically calls start. If you want to avoid this, call `this.stop()` inside the component function.
+- By default, nodes automatically calls start when there are created. If you want to avoid it, call `this.stop()` inside the component function.
 
 
 ### #3
@@ -243,6 +233,7 @@ const node = xnew(function () {
         countUp: () => {
             counter++;
         },
+        // setter getter
         counter: {
             set: (value) => counter = value, 
             get: () => counter,
@@ -255,6 +246,7 @@ node.counter++; // 1 -> 2
 
 ```
 - Existing functions cannot be overwritten.
+- Avoid using name starting with an underscore `_`, because it is used asinternal function of nodes.
 
 ### #4
 You can set the event listener using `on`, and fire original event using `emit`.
@@ -268,7 +260,7 @@ const node = xnew(function () {
         // fires when emit('myevent') is called.
     });
 
-    // this.off(); // unset all listeners
+    // this.off(); // unset all listeners in the node
     // this.off('myevent'); // unset 'myevent'
 });
 

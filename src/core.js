@@ -53,13 +53,15 @@ export class Node {
         // global data
         this.global = this.parent?.global ?? {};
 
+        this.start();
         if (content.length > 0) {
-            if (typeof content[0] === 'function') {
-                this.start();
-                for (let i = 0; typeof content[i] === 'function'; ) {
+            let i = 0;
+            if (typeof content[i] === 'function') {
+                this.extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
+                if (typeof content[i] === 'function') {
                     this.extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
                 }
-            } else if (typeof content[0] === 'string' && this._.base !== this.element) {
+            } else if (typeof content[i] === 'string' && this._.base !== this.element) {
                 this.element.innerHTML = content[0];
             }
         }
@@ -196,10 +198,6 @@ export class Node {
         }
     }
 
-    toggle() {
-        (this._.phase === 'before start' || this._.phase === 'started') ? this.stop() : this.start(...args);
-    }
-
     isStarted() {
         return this._.phase === 'started';
     }
@@ -220,11 +218,11 @@ export class Node {
     // utilities
     //--------------------------------------------------------------------------------
   
-    nest(attributes, inner) {
+    nestElement(attributes, inner) {
         this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
     }
 
-    callback(func, delay, limit = 0) {
+    setCallback(func, delay, limit = 0) {
         let id;
         const callback = {
             counter: 0,
@@ -313,16 +311,8 @@ export class Node {
         }
     }
 
-    listeners(type, listener) {
-        if (typeof type === 'string' && type.split(' ').length > 1) {
-            return [];
-        } else {
-            return this._listeners(type, listener);
-        }
-    }
-
     _listeners(type, listener) {
-        if (typeof type === 'string' && type !== '') {
+        if (typeof type === 'string') {
             if (typeof listener === 'function') {
                 if (this._.listeners.has(type) === true && this._.listeners.get(type).has(listener) === true) {
                     return [listener];
@@ -348,7 +338,7 @@ export class Node {
     }
 
     _selfEmit(type, ...args) {
-        const listeners = this.listeners(type);
+        const listeners = this._listeners(type);
         if (listeners.length > 0) {
             Node.wrap(this, () => listeners.forEach((listener) => listener(...args)));
         }
