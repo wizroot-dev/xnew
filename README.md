@@ -191,11 +191,11 @@ If you call `xnew` like nesting, created nodes have a parent-child relationship.
 </body>
 ```
 - If you omit `element`, new node's element is set automatically (e.g. node2, node4, node5). 
-- `this` pointer is a different value depending on where it is used.
+- Note that `this` pointer is a different value depending on where it is used.
 
 
 ### #2
-New node has several functions available by default. You can define the detail using thre response of component function.
+a node has some functions by default. You can define the detail using thre response of component function.
 
 ```
 const node = xnew(function () {
@@ -234,7 +234,7 @@ node.isFinalized(); // ...
 
 
 ### #3
-You can define original functions for new node.
+You can define original functions.
 ```
 const node = xnew(function () {
     let counter = 0;
@@ -251,7 +251,7 @@ const node = xnew(function () {
 });
 
 node.countUp(); // 0 -> 1
-node.counter++  // 1 -> 2
+node.counter++; // 1 -> 2
 
 ```
 - Existing functions cannot be overwritten.
