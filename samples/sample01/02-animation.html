@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>sample01-animation</title>
+
+    <script src="three.min.js"></script>
+    <script src="../../dist/xnew.js"></script>
+</head>
+
+<body style="height: 100vh; margin: 0; display: flex; justify-content: center; align-items: center;">
+
+    <script>
+        xnew(function () {
+            this.nest({tag:'div', style: 'width: 200px; height: 200px; background: #08F; '});
+
+            return {
+                animate: (time) => {
+                    this.element.style.transform = `rotate(${time / 10}deg)`;
+                },
+            };
+        });
+
+    </script>
+</body>
+
+</html>

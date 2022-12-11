@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>example02-draw</title>
+
+    <script src="../three.min.js"></script>
+    <script src="../../dist/xnew.js"></script>
+</head>
+
+<body style="height: 100vh; margin: 0; display: flex;">
+    <script>
+        xnew(function () {
+            const [width, height] = [800, 450];
+            const canvas = xnew({ tag: 'canvas', width, height, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain' });
+
+            const renderer = new THREE.WebGLRenderer({ canvas: canvas.element });
+            const camera = new THREE.PerspectiveCamera(45, width / height);
+            camera.position.set(0, 0, +100);
+
+            const scene = new THREE.Scene();
+
+            xnew(MyCube, { scene, camera });
+
+            return {
+                animate: () => {
+                    renderer.render(scene, camera);
+                },
+            };
+        });
+
+        // create a cube and animate
+        function MyCube({ scene, camera }) {
+            const geometry = new THREE.BoxGeometry(40, 40, 40);
+            const material = new THREE.MeshNormalMaterial();
+            const object = new THREE.Mesh(geometry, material);
+            scene.add(object);
+
+            const draw = xnew(xnex.DrawEvent);
+            draw.on('drawmove', (event, ex) => {
+                if (event.buttons & 1 || !event.buttons) {
+                    scene.rotation.x += ex.delta.y * 0.01;
+                    scene.rotation.y += ex.delta.x * 0.01;
+                }
+                if (event.buttons & 2) {
+                    camera.position.x -= ex.delta.x * camera.position.z * 0.001;
+                    camera.position.y += ex.delta.y * camera.position.z * 0.001;
+                } 
+                this.stop();
+            });
+            this.on('wheel', (event) => {
+                camera.position.z += camera.position.z * (event.deltaY > 0 ? +0.05 : -0.05);
+            });
+            this.on('contextmenu', (event) => event.preventDefault());
+
+            return {
+                animate: () => {
+                    object.rotation.y += 0.01;
+                },
+                finalize: () => {
+                    scene.remove(object);
+                },
+            };
+        }
+
+
+    </script>
+</body>
+</html>
