@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>sample01-event</title>
+
+    <script src="../../dist/xnew.js"></script>
+</head>
+
+<body>
+    <script>
+        xnew(function () {
+            const button1 = xnew(MyButton1, { text: 'click me!' });
+            const button2 = xnew(MyButton2, { text: 'click me!' });
+        });
+
+        function MyButton1({ text }) {
+            this.nest({ tag: 'button', style: 'padding: 8px;' }, text);
+
+            let counter = 0;
+            this.on('click', () => this.emit('countup'));
+            this.on('countup #countup', () => {
+                this.element.textContent = ++counter + ' clicked';
+            })
+        }
+
+        function MyButton2({ text }) {
+            this.nest({ tag: 'button', style: 'padding: 8px;' }, text);
+
+            let counter = 0;
+            this.on('click', () => this.emit('#countup'));
+            this.on('#countup', () => {
+                this.element.textContent = ++counter + ' clicked';
+            })
+        }
+
+    </script>
+</body>
+
+</html>

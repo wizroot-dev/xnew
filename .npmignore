@@ -1,0 +1,9 @@
+/node_modules
+/dist
+/.vscode
+/src
+/samples
+/images
+/rollup.config.js
+/package-lock.json
+/index.js

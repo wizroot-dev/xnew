@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>sample01-component</title>
+
+    <script src="../../dist/xnew.js"></script>
+</head>
+
+<body>
+    <script>
+        const button = xnew(MyButton, { text: 'click me!' });
+
+        // component function
+        function MyButton({ text }) {
+            this.nest({ tag: 'button', style: 'padding: 8px;' }, text);
+
+            let counter = 0;
+            this.on('click', () => {
+                this.element.textContent = ++counter + ' clicked';
+            })
+        }
+
+    </script>
+</body>
+
+</html>

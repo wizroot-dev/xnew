@@ -1,0 +1,20 @@
+{
+  "name": "xnew",
+  "description": "simple component based library",
+  "version": "0.1.1",
+  "main": "dist/xnew.js",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wizroot-dev/xnew.js/issues"
+  },
+  "homepage": "https://github.com/wizroot-dev/xnew.js#readme",
+  "scripts": {
+    "server": "npx http-server",
+    "build": "npx rollup --config --bundleConfigAsCjs",
+    "watch": "npx rollup --config --watch --bundleConfigAsCjs"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "rollup": "^3.3.0"
+  }
+}

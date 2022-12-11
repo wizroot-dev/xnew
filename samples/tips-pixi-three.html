@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>tips - pixi-three</title>
+
+    <script src="pixi.min.js"></script>
+    <script src="three.min.js"></script>
+    <script src="../dist/wizroot.js"></script>
+</head>
+
+<body style="height: 100vh; margin: 0;">
+
+    <script>
+        wiznew(function() {
+            const [width, height] = [800, 450];
+            const canvas = wiznew({ tag: 'canvas', width, height, style: 'position: absolute; inset: 0; margin: auto;' });
+
+            const three = {};
+            three.renderer = new THREE.WebGLRenderer({});
+            three.renderer.setPixelRatio(window.devicePixelRatio || 1);
+            three.renderer.setSize(width, height);
+
+            three.camera = new THREE.PerspectiveCamera(45, width / height);
+            three.camera.position.set(0, 0, +1000);
+            three.scene = new THREE.Scene();
+
+            const pixi = {};
+            pixi.renderer = PIXI.autoDetectRenderer({ view: canvas.element, resolution: window.devicePixelRatio ?? 1 });
+            pixi.scene = new PIXI.Container();
+            
+            const texture = PIXI.Texture.from(three.renderer.domElement);
+            const sprite = new PIXI.Sprite(texture);
+            pixi.scene.addChild(sprite);
+            sprite.x = (pixi.renderer.screen.width - sprite.width) / 2
+            sprite.y = (pixi.renderer.screen.height - sprite.height) / 2
+
+            wiznew(Box2d, { pixi });
+            wiznew(Box3d, { three });
+
+            return {
+                animate: () => {
+                    three.renderer.render(three.scene, three.camera);
+                    sprite.texture.update()
+                    pixi.renderer.render(pixi.scene)
+                },
+            };
+        });
+        function Box2d ({ pixi }) {
+            const object = pixi.scene.addChild(new PIXI.Container());
+            object.x = pixi.renderer.screen.width / 2;
+            object.y = pixi.renderer.screen.height / 2;
+
+            const graphics = object.addChild(new PIXI.Graphics());
+            graphics.beginFill(0xff2266);
+            graphics.drawRect(-50, -50, 100, 100);
+            graphics.endFill();
+
+            return {
+                animate: () => {
+                    object.rotation += 0.01;
+                },
+                finalize: () => {
+                    pixi.scene.removeChild(object);
+                },
+            };
+        }
+        function Box3d({ three }) {
+            const object = new THREE.Mesh(new THREE.BoxGeometry(400, 400, 400), new THREE.MeshNormalMaterial());
+            three.scene.add(object);
+
+            return {
+                animate: () => {
+                    object.rotation.y += 0.01;
+                },
+                finalize: () => {
+                    three.scene.remove(object);
+                },
+            };
+        }
+
+    </script>
+</body>
+</html>
