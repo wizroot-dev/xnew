@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>example02 - pixi</title>
+    <title>example02-pixi</title>
 
     <script src="../pixi.min.js"></script>
     <script src="../xnew.js"></script>
@@ -13,12 +13,11 @@
 <body style="height: 100vh; margin: 0;">
     <script>
         xnew(xnex.Screen, { width: 800, height: 450 }, function () {
-            const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.canvas.width, height: this.canvas.height });
+            const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.width, height: this.height });
             const scene = new PIXI.Container();
-            [scene.x, scene.y] = [this.canvas.width / 2, this.canvas.height / 2];
+            [scene.x, scene.y] = [this.width / 2, this.height / 2];
           
             xnew(MyBox, { scene });
-
             return {
                 animate: () => {
                     renderer.render(scene)
