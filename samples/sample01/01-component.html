@@ -16,7 +16,7 @@
 
         // component function
         function MyButton({ text }) {
-            this.nest({ tag: 'button', style: 'padding: 8px;' }, text);
+            this.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
 
             let counter = 0;
             this.on('click', () => {

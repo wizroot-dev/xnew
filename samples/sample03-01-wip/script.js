@@ -11,7 +11,7 @@ function Main() {
     xnew(xnex.Screen, { width, height }, function () {
         const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width, height, background: '#000000', backgroundAlpha: 0.1 });
         const scene = new PIXI.Container();
-        xnew(Game, { scene, width, height });
+        xnew(Title, { scene, width, height });
 
         return {
             animate: () => {
@@ -98,7 +98,7 @@ function Game({ scene, width, height }) {
 
     const addEnemy = () => {
         const enemy = xnew(Enemy, { container, width, height, player });
-        this.callback(addEnemy, delay, 1);
+        //this.callback(addEnemy, delay, 1);
     }
     addEnemy();
 

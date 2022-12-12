@@ -10,15 +10,12 @@
     <script src="../../dist/xnew.js"></script>
 </head>
 
-<body>
+<body style="height: 100vh; margin: 0;">
     <script>
-        xnew(function() {
-            const [width, height] = [800, 450];
-            const canvas = xnew({ tag: 'canvas', width, height, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain' });
-
-            const renderer = PIXI.autoDetectRenderer({ view: canvas.element, width, height });
+        xnew(xnex.Screen, { width: 800, height: 450 }, function () {
+            const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.canvas.width, height: this.canvas.height });
             const scene = new PIXI.Container();
-            [scene.x, scene.y] = [width / 2, height / 2];
+            [scene.x, scene.y] = [this.canvas.width / 2, this.canvas.height / 2];
           
             xnew(MyBox, { scene });
 

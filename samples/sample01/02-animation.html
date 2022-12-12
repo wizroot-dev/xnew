@@ -7,7 +7,6 @@
 
     <title>sample01-animation</title>
 
-    <script src="three.min.js"></script>
     <script src="../../dist/xnew.js"></script>
 </head>
 
@@ -15,11 +14,20 @@
 
     <script>
         xnew(function () {
-            this.nest({tag:'div', style: 'width: 200px; height: 200px; background: #08F; '});
+            this.nestElement({tag:'div', style: 'width: 200px; height: 200px; background: #08F; '}, 'start');
 
+            this.on('click', () => {
+                this.isStarted() ? this.stop() : this.start();
+            });
             return {
+                start: () => {
+                    this.element.textContent = 'start';
+                },
                 animate: (time) => {
                     this.element.style.transform = `rotate(${time / 10}deg)`;
+                },
+                stop: () => {
+                    this.element.textContent = 'stop';
                 },
             };
         });

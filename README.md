@@ -13,7 +13,9 @@ Useful for creating apps and games with dynamic scenes.
 ```
 npm install xnew
 ```
-
+```
+import { xnew } from 'xnew'
+```
 ## Features
 Before describing the specifications, let's first look the features with some samples.
 
@@ -27,7 +29,7 @@ const button = xnew(MyButton, { text: 'click me!' });
 
 // component
 function MyButton({ text }) {
-    this.nest({ tag: 'button', style: 'padding: 8px;' }, text);
+    this.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
     let counter = 0;
     this.on('click', () => {
         this.element.textContent = ++counter + ' clicked!';
@@ -149,7 +151,7 @@ As shown above, xnew accepts arguments (`parent`, `element`, `content`).
 **Note that you have to use `function` keyword as component function, not `() => {} (arrow function)`**. This is because to bind `this` pointer in the function.
 
 ### #1
-If you call `xnew` like nesting, created nodes have a parent-child relationship.
+If you call `xnew` like nestElementing, created nodes have a parent-child relationship.
 
 ```
 <body>
@@ -169,7 +171,7 @@ If you call `xnew` like nesting, created nodes have a parent-child relationship.
 
         const node4 = xnew(function () {
             // create new element and replace this.element
-            this.nest({ tag: 'div', id: 'piyo' };
+            this.nestElement({ tag: 'div', id: 'piyo' };
 
             // this: node4, this.parent: node1, this.element: piyo (as a child element of hoge)
         });
@@ -242,11 +244,12 @@ const node = xnew(function () {
 });
 
 node.countUp(); // 0 -> 1
-node.counter++; // 1 -> 2
+node.counter = 2;       // setter
+const x = node.counter; // getter
 
 ```
 - Existing functions cannot be overwritten.
-- Avoid using name starting with an underscore `_`, because it is used asinternal function of nodes.
+- Avoid using name starting with an underscore `_`, because it is used as internal function of nodes.
 
 ### #4
 You can set the event listener using `on`, and fire original event using `emit`.

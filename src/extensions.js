@@ -4,32 +4,48 @@ import { xnew } from './core';
 // screen
 //--------------------------------------------------------------------------------
 
-export function Screen({ width, height }) {
-    this.nest({ style: 'position: absolute; inset: 0; margin: auto;' });
-    this.nest({ style: 'position: relative; width: 100%; height: 100%;' });
+export function Screen({ width, height, objectFit = 'contain' }) {
+    this.nestElement({ style: 'position: relative; width: 100%; height: 100%; overflow: hidden;' });
+    this.nestElement({ style: 'position: absolute; inset: 0; margin: auto; ' });
+    this.nestElement({ style: 'position: relative; width: 100%; height: 100%; ' });
     const outer = this.element.parentElement;
 
     const canvas = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
 
-    const win = xnew(window);
-    win.on('resize', () => {
-        const aspect = width / height;
-        const parentWidth = outer.parentElement.clientWidth;
-        const parentHeight = outer.parentElement.clientHeight;
+    let scale = 1.0;
+    if (['fill', 'contain', 'cover'].includes(objectFit)) {
+        const win = xnew(window);
+        win.on('resize', () => {
+            const aspect = width / height;
+            const parentWidth = outer.parentElement.clientWidth;
+            const parentHeight = outer.parentElement.clientHeight;
 
-        let style = { width: '100%', height: '100%', top: '0px', left: '0px' };
-        
-        if (parentWidth < parentHeight * aspect) {
-            style.height = Math.floor(parentWidth / aspect) + 'px';
-        } else {
-            style.width = Math.floor(parentHeight * aspect) + 'px';
-        }
-        Object.assign(outer.style, style);
-    });
-    win.emit('resize');
+            let style = { width: '100%', height: '100%', top: '0px', left: '0px' };
+            if (objectFit === 'contain') {
+                if (parentWidth < parentHeight * aspect) {
+                    style.height = Math.floor(parentWidth / aspect) + 'px';
+                } else {
+                    style.width = Math.floor(parentHeight * aspect) + 'px';
+                }
+            } else if (objectFit === 'cover') {
+                if (parentWidth < parentHeight * aspect) {
+                    style.width = Math.floor(parentHeight * aspect) + 'px';
+                    style.left = Math.floor((parentWidth - parentHeight * aspect) / 2) + 'px';
+                    style.right = 'auto';
+                } else {
+                    style.height = Math.floor(parentWidth / aspect) + 'px';
+                    style.top = Math.floor((parentHeight - parentWidth / aspect) / 2) + 'px';
+                    style.bottom = 'auto';
+                }
+            }
+            Object.assign(outer.style, style);
+        });
+        win.emit('resize');
+    }
 
     return {
-        canvas: { get: () => canvas.element, }
+        canvas: { get: () => canvas.element },
+        scale: { get: () => scale }
     }
 }
 
@@ -41,31 +57,32 @@ export function Screen({ width, height }) {
 export function DrawEvent({ }) {
     const base = xnew();
     const win = xnew(window);
-    const element = this.element;
+    const self = this;
 
     let [id, start, end] = [null, null, null];
-    const down = (event) => {
+    base.on('mousedown touchstart', down);
+
+    function down (event) {
         if (id !== null) return;
         const position = getPosition(event, id = getId(event));
         start = position;
         end = position;
-        this.emit('drawstart', event, { type: 'drawstart', id, start, end, });
+        self.emit('drawstart', event, { type: 'drawstart', id, start, end, });
         win.on('mousemove touchmove', move);
         win.on('mouseup touchend', up);
     };
-    const move = (event) => {
+    function move (event) {
         const position = getPosition(event, id);
         const delta = { x: position.x - end.x, y: position.y - end.y };
         end = position;
-        this.emit('drawmove', event, { type: 'drawmove', id, start, end, delta, });
+        self.emit('drawmove', event, { type: 'drawmove', id, start, end, delta, });
     };
-    const up = (event) => {
+    function up (event) {
         const position = getPosition(event, id);
-        this.emit('drawend', event, { type: 'drawend', id, position, });
+        self.emit('drawend', event, { type: 'drawend', id, position, });
         [id, start, end] = [null, null, null];
         win.off();
     };
-    base.on('mousedown touchstart', down);
 
     function getId(event) {
         if (event.pointerId !== undefined) {
@@ -88,7 +105,7 @@ export function DrawEvent({ }) {
             original = event;
         }
 
-        const rect = element.getBoundingClientRect();
+        const rect = self.element.getBoundingClientRect();
         return (original?.clientX && original?.clientY) ? { x: original.clientX - rect.left, y: original.clientY - rect.top } : { x: 0, y: 0 };
     }
 }
@@ -134,10 +151,12 @@ export function Audio({ url }) {
 export function AudioController() {
     const node = _AudioGainNode();
     
-    this.define('volume', {
-        set: (value) => node.gain.value = value,
-        get: () => node.gain.value,
-    })
+    return {
+        volume: {
+            set: (value) => node.gain.value = value,
+            get: () => node.gain.value,
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------
@@ -145,7 +164,7 @@ export function AudioController() {
 //--------------------------------------------------------------------------------
 
 export function AnalogStick({ size = 160, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
-    this.nest({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;`, });
+    this.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;`, });
 
     const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
     const strokeStyle = `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)}; stroke-linejoin: round;`;
@@ -194,7 +213,7 @@ export function AnalogStick({ size = 160, fill = '#FFF', fillOpacity = 0.8, stro
 //--------------------------------------------------------------------------------
 
 export function CircleButton({ size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
-    this.nest({ style: `position: relative; width: ${size}px; height: ${size}px;`, });
+    this.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px;`, });
 
     const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
     const strokeStyle = `stroke-linejoin: round; stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)};`;

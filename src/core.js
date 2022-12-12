@@ -1,6 +1,6 @@
 
 //--------------------------------------------------------------------------------
-// function xnew (parent, element, content)
+// function xnew (parent, element, ...content)
 //
 // parent  : node: object
 // element : html element, window or attributes to create it: object
@@ -14,11 +14,12 @@ export function xnew(...args) {
 
     const parent = assign((target) => target instanceof Node || target === null);
     const element = assign((target) => target instanceof Element || target === window || (typeof target === 'object' && target !== null));
+    const content = args.slice(counter);
 
     function assign(check) {
         return (args.length > counter && (check(args[counter]) || args[counter] === undefined)) ? args[counter++] : undefined;
     }
-    return new Node(parent, element, ...args.slice(counter));
+    return new Node(parent, element, ...content);
 }
 
 
@@ -32,7 +33,7 @@ export class Node {
         this._ = {};
         this._.children = new Set();  // child nodes
         this._.phase = 'stopped';     // [stopped ->before start ->started ->before stop ->...] ->before finalize ->finalized
-        this._.system = {};
+        this._.defines = {};
         this._.listeners = new Map();
         
         // parent Node class
@@ -82,32 +83,14 @@ export class Node {
     //--------------------------------------------------------------------------------
     
     _extend(component, props) {
-        const defines = Node.wrap(this, component.bind(this), props ?? {}, this._.defines ?? {});
+        const defines = Node.wrap(this, component.bind(this), props ?? {}, Object.assign({}, this._.defines ?? {}));
 
         if (typeof defines === 'object' && defines !== null) {
-            this._.defines = this._.defines ? Object.assign(this._.defines, defines) : defines;
-
-            if (defines.promise instanceof Promise) {
-                this._.system.promise = this._.system.promise;
-            }
-            
             Object.keys(defines).forEach((key) => {
-                const value = defines[key];
                 if (['promise', 'start', 'animate', 'stop', 'finalize'].includes(key)) {
-                    if (typeof value === 'function') {
-                        this._.system[key] = (...args) => Node.wrap(this, value, ...args);
-                    }
-                } else {
-                    if (this[key] && this._.system[key] === undefined) {
-                        console.warn(`node define error: [${key}] already exists.`);
-                        return;
-                    }
-
-                    if (typeof value === 'function') {
-                        this[key] = (...args) => Node.wrap(this, value, ...args);
-                    } else if (typeof value === 'object') {
-                        const object = value;
-
+                } else if (this._.defines[key] || !this[key]) {
+                    if (typeof defines[key] === 'object') {
+                        const object = defines[key];
                         let descripters = {};
                         Object.keys(object).forEach((key) => {
                             const value = object[key];
@@ -116,16 +99,70 @@ export class Node {
                             } else {
                                 descripters[key] = value;
                             }
-                        })
+                        });
                         Object.defineProperty(this, key, descripters);
+                    } else if (typeof defines[key] === 'function') {
+                        const func = defines[key];
+                        Object.defineProperty(this, key, { value: (...args) => Node.wrap(this, func, ...args) });
+                    } else {
+                        console.error(`xnew define error: "${key}: value" is improper format.`);
+                        return;
                     }
+                } else {
+                    console.error(`xnew define error: "${key}" already exists.`);
+                    return;
                 }
+                this._.defines[key] = defines[key];
             });
         }
     }
 
     extend(component, props) {
-        this._extend(component, props);
+        if (this._.phase === 'before stop' || this._.phase === 'stopped' || this._.phase === 'before start') {
+            this._extend(component, props);
+        }
+    }
+
+    get promise() {
+        return this._.defines.promise ?? Promise.resolve();
+    }
+
+    start() {
+        if (this._.phase === 'before stop' || this._.phase === 'stopped') {
+            this._.phase = 'before start';
+            setTimeout(() => this.promise.then(() => this._start()), 0);
+        }
+    }
+
+    _start() {
+        if (this._.phase === 'before start') {
+            this._.start = new Date().getTime();
+            Node.wrap(this, this._.defines.start);
+            this._.phase = 'started';
+        }
+    }
+
+    _animate(time) {
+        if (this._.phase === 'started') {
+            this._.children.forEach((node) => node._animate(time));
+            Node.wrap(this, this._.defines.animate, time);
+        }
+    }
+
+    stop() {
+        if (this._.phase === 'before start') {
+            this._.phase = 'stopped';
+        } else if (this._.phase === 'started') {
+            this._.phase = 'before stop';
+            this._stop();
+        }
+    }
+
+    _stop() {
+        if (this._.phase === 'before stop') {
+            Node.wrap(this, this._.defines.stop);
+            this._.phase = 'stopped';
+        }
     }
 
     finalize() {
@@ -140,7 +177,7 @@ export class Node {
         if (this._.phase === 'before finalize') {
 
             this._.children.forEach((node) => node.finalize());
-            Node.wrap(this, this._.system.finalize);
+            Node.wrap(this, this._.defines.finalize);
 
             this.off();
 
@@ -160,44 +197,6 @@ export class Node {
         }
     }
 
-    start() {
-        if (this._.phase === 'before stop' || this._.phase === 'stopped') {
-            this._.phase = 'before start';
-            setTimeout(() => this.promise().then(() => this._start()), 0);
-        }
-    }
-
-    _start() {
-        if (this._.phase === 'before start') {
-            this._.start = new Date().getTime();
-            Node.wrap(this, this._.system.start);
-            this._.phase = 'started';
-        }
-    }
-
-    _animate(time) {
-        if (this._.phase === 'started') {
-            this._.children.forEach((node) => node._animate(time));
-            Node.wrap(this, this._.system.animate, time);
-        }
-    }
-
-    stop() {
-        if (this._.phase === 'before start') {
-            this._.phase = 'stopped';
-        } else if (this._.phase === 'started') {
-            this._.phase = 'before stop';
-            this._stop();
-        }
-    }
-
-    _stop() {
-        if (this._.phase === 'before stop') {
-            Node.wrap(this, this._.system.stop);
-            this._.phase = 'stopped';
-        }
-    }
-
     isStarted() {
         return this._.phase === 'started';
     }
@@ -210,10 +209,6 @@ export class Node {
         return this._.phase === 'finalized';
     }
 
-    promise() {
-        return this._.system.promise ?? Promise.resolve();
-    }
-
     //--------------------------------------------------------------------------------
     // utilities
     //--------------------------------------------------------------------------------
@@ -222,9 +217,9 @@ export class Node {
         this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
     }
 
-    setCallback(func, delay, limit = 0) {
+    setCallback(callback, delay, limit = 0) {
         let id;
-        const callback = {
+        const response = {
             counter: 0,
             clear: () => {
                 if (this._.callbackIds.has(id)) {
@@ -235,23 +230,23 @@ export class Node {
         }
         if (limit === 1) {
             id = setTimeout(() => {
-                Node.wrap(this, func, callback.counter++);
-                callback.clear();
+                Node.wrap(this, callback, response.counter++);
+                response.clear();
             }, delay);
         } else {
             id = setInterval(() => {
-                if (limit === 0 || callback.counter < limit) {
-                    Node.wrap(this, func, callback.counter++);
+                if (limit === 0 || response.counter < limit) {
+                    Node.wrap(this, callback, response.counter++);
                 }
-                if (limit !== 0 && callback.counter >= limit) {
-                    callback.clear();
+                if (limit !== 0 && response.counter >= limit) {
+                    response.clear();
                 }
             }, delay);    
         }
         this._.callbackIds = this._.callbackIds ?? new Set;
         this._.callbackIds.add(id);
 
-        return callback;
+        return response;
     }
 
     //--------------------------------------------------------------------------------

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>sample02-analogstick</title>
+
+    <script src="../pixi.min.js"></script>
+    <script src="../../dist/xnew.js"></script>
+</head>
+
+<body style="height: 100vh; margin: 0;">
+    
+    <script>
+        xnew(function() {
+            xnew(Input);
+            
+            xnew(xnex.Screen, { width: 800, height: 450 }, function () {
+                const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.canvas.width, height: this.canvas.height });
+                const scene = new PIXI.Container();
+                [scene.x, scene.y] = [this.canvas.width / 2, this.canvas.height / 2];
+                
+                xnew(MyBox, { scene });
+                return {
+                    animate: () => {
+                        renderer.render(scene)
+                    },
+                };
+            });
+        });
+
+        function Input() {
+            const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xnex.AnalogStick, { size: 160 });
+            stick.on('stickstart stickmove stickend', (event, ex) => {
+                stick.emit('#move', ex);
+            })
+            const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xnex.CircleButton);
+            button.on('buttondown', (event, ex) => {
+                button.emit('#action');
+            })
+        }
+
+        function MyBox({ scene }) {
+            const object = scene.addChild(new PIXI.Container());
+            const graphics = object.addChild(new PIXI.Graphics());
+            graphics.beginFill(0xff2266);
+            graphics.drawRect(-100, -100, 200, 200);
+            graphics.endFill();
+
+            let move = null;
+            let direction = +1;
+            this.on('#move', ({ vector }) => {
+                move = vector;
+            });
+            this.on('#action', () => {
+                direction *= -1;
+            });
+
+            return {
+                animate: () => {
+                    object.rotation += 0.01 * direction;
+                    if (move) {
+                        object.x += move.x * 5;
+                        object.y += move.y * 5;
+                    }
+                },
+                finalize: () => {
+                    scene.removeChild(object);
+                },
+            };
+        }
+        
+
+    </script>
+</body>
+</html>
