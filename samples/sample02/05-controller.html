@@ -7,7 +7,7 @@
     <title>sample02-analogstick</title>
 
     <script src="../pixi.min.js"></script>
-    <script src="../../dist/xnew.js"></script>
+    <script src="../xnew.js"></script>
 </head>
 
 <body style="height: 100vh; margin: 0;">
@@ -15,7 +15,7 @@
     <script>
         xnew(function() {
             xnew(Input);
-            
+
             xnew(xnex.Screen, { width: 800, height: 450 }, function () {
                 const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.canvas.width, height: this.canvas.height });
                 const scene = new PIXI.Container();

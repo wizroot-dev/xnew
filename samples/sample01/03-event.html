@@ -7,7 +7,7 @@
 
     <title>sample01-event</title>
 
-    <script src="../../dist/xnew.js"></script>
+    <script src="../xnew.js"></script>
 </head>
 
 <body>
@@ -33,7 +33,7 @@
 
             let counter = 0;
             this.on('click', () => this.emit('#countup'));
-            
+
             this.on('#countup', () => {
                 this.element.textContent = ++counter + ' clicked';
             })
