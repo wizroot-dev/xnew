@@ -412,9 +412,8 @@
       this.nestElement({ style: 'position: relative; width: 100%; height: 100%; ' });
       const outer = this.element.parentElement;
 
-      const canvas = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
+      const node = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
 
-      let scale = 1.0;
       if (['fill', 'contain', 'cover'].includes(objectFit)) {
           const win = xnew(window);
           win.on('resize', () => {
@@ -446,8 +445,9 @@
       }
 
       return {
-          canvas: { get: () => canvas.element },
-          scale: { get: () => scale }
+          width: { get: () => width },
+          height: { get: () => height },
+          canvas: { get: () => node.element },
       }
   }
 

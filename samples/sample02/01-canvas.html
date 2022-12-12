@@ -16,20 +16,20 @@
 
         // case1
         xnew({ style }, function () {
-            const canvasNode = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: fill;' });
-            xnew(Content, { canvas: canvasNode.element });
+            const node = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: fill;' });
+            xnew(Content, { canvas: node.element });
         });
 
         // case2
         xnew({ style }, function () {
-            const canvasNode = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: cover;' });
-            xnew(Content, { canvas: canvasNode.element });
+            const node = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: cover;' });
+            xnew(Content, { canvas: node.element });
         });
 
         // case3
         xnew({ style }, function() {
-            const canvasNode = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain;' });
-            xnew(Content, { canvas: canvasNode.element });
+            const node = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain;' });
+            xnew(Content, { canvas: node.element });
         });
 
         // case4
