@@ -4,15 +4,17 @@
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.window = global.window || {}));
 })(this, (function (exports) { 'use strict';
 
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
   // function xnew (parent, element, ...content)
   //
-  // parent  : node: object
-  // element : html element, window or attributes to create it: object
+  // parent  : node: object (in many cases, this is omitted and set automatically)
+  // element : two pattern
+  //           1. html element or window: object (e.g. document.querySelector('#hoge'))
+  //           2. attributes to create a html element : object (e.g. { tag: 'div', style: '' })
   // content : two pattern
-  //           1. innerHTML: string
-  //           2. component: function, props: object
-  //--------------------------------------------------------------------------------
+  //           a. innerHTML: string
+  //           b. component: function, props: object
+  //----------------------------------------------------------------------------------------------------
 
   function xnew(...args) {
       let counter = 0;
@@ -27,10 +29,9 @@
       return new Node(parent, element, ...content);
   }
 
-
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
   // node
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
 
   class Node {
       constructor(parent, element, ...content) {
@@ -83,18 +84,23 @@
           }
       }
       
-      //--------------------------------------------------------------------------------
+      //----------------------------------------------------------------------------------------------------
       // basic
-      //--------------------------------------------------------------------------------
+      //----------------------------------------------------------------------------------------------------
       
       _extend(component, props) {
           const defines = Node.wrap(this, component.bind(this), props ?? {}, Object.assign({}, this._.defines ?? {}));
 
           if (typeof defines === 'object' && defines !== null) {
               Object.keys(defines).forEach((key) => {
-                  if (['promise', 'start', 'animate', 'stop', 'finalize'].includes(key)) ; else if (this._.defines[key] || !this[key]) {
-                      if (typeof defines[key] === 'object') {
-                          const object = defines[key];
+                  if (['promise', 'start', 'animate', 'stop', 'finalize'].includes(key)) {
+                      this._.defines[key] = defines[key];
+                  } else if (this._.defines[key] || !this[key]) {
+                      if (typeof defines[key] === 'object' || typeof defines[key] === 'function') {
+                          this._.defines[key] = defines[key];
+
+                          const object = typeof defines[key] === 'object' ? defines[key] : { value: defines[key] };
+
                           let descripters = {};
                           Object.keys(object).forEach((key) => {
                               const value = object[key];
@@ -105,18 +111,12 @@
                               }
                           });
                           Object.defineProperty(this, key, descripters);
-                      } else if (typeof defines[key] === 'function') {
-                          const func = defines[key];
-                          Object.defineProperty(this, key, { value: (...args) => Node.wrap(this, func, ...args) });
                       } else {
-                          console.error(`xnew define error: "${key}: value" is improper format.`);
-                          return;
+                          console.error(`xnew define error: "${key}" is improper format.`);
                       }
                   } else {
                       console.error(`xnew define error: "${key}" already exists.`);
-                      return;
                   }
-                  this._.defines[key] = defines[key];
               });
           }
       }
@@ -189,6 +189,11 @@
               if (this._.frameId) {
                   cancelAnimationFrame(this._.frameId);
               }
+              
+              // callback
+              this._.callbackIds?.forEach((handle) => {
+                  this.clearCallback(handle);
+              });
 
               if (this.element !== null && this.element !== this._.base) {
                   let target = this.element;
@@ -213,49 +218,49 @@
           return this._.phase === 'finalized';
       }
 
-      //--------------------------------------------------------------------------------
+      //----------------------------------------------------------------------------------------------------
       // utilities
-      //--------------------------------------------------------------------------------
+      //----------------------------------------------------------------------------------------------------
     
       nestElement(attributes, inner) {
           this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
       }
 
-      setCallback(callback, delay, limit = 0) {
-          let id;
-          const response = {
-              counter: 0,
-              clear: () => {
-                  if (this._.callbackIds.has(id)) {
-                      limit === 1 ? clearTimeout(id) : clearInterval(id);
-                      this._.callbackIds.delete(id);
-                  }
-              }
-          };
-          if (limit === 1) {
-              id = setTimeout(() => {
-                  Node.wrap(this, callback, response.counter++);
-                  response.clear();
-              }, delay);
-          } else {
-              id = setInterval(() => {
-                  if (limit === 0 || response.counter < limit) {
-                      Node.wrap(this, callback, response.counter++);
-                  }
-                  if (limit !== 0 && response.counter >= limit) {
-                      response.clear();
-                  }
-              }, delay);    
-          }
-          this._.callbackIds = this._.callbackIds ?? new Set;
-          this._.callbackIds.add(id);
-
-          return response;
+      setCallback(func, delay, ...args) {
+          const handle = {};
+          this._setCallback(handle, func, delay, ...args);
+          return handle;
       }
 
-      //--------------------------------------------------------------------------------
+      _setCallback(handle, func, delay, ...args) {
+          Object.assign(handle, { id: null, counter: 0 });
+
+          let callback;
+          callback = () => {
+              const response = Node.wrap(self, func, handle.counter, ...args);
+              handle.counter++;
+              if (response === true) {
+                  handle.id = setTimeout(callback, delay);
+              } else if (Array.isArray(response) && response.length >= 2) {
+                  this._setCallback(handle, response[0], response[1], ...response.slice(2));
+              }
+          };
+          handle.id = setTimeout(callback, delay);
+
+          this._.callbackIds = this._.callbackIds ?? new Set;
+          this._.callbackIds.add(handle);
+      }
+
+      clearCallback(handle) {
+          if (this._.callbackIds?.has(handle)) {
+              clearTimeout(handle.id);
+              this._.callbackIds.delete(handle);
+          }
+      }
+
+      //----------------------------------------------------------------------------------------------------
       // event method
-      //--------------------------------------------------------------------------------
+      //----------------------------------------------------------------------------------------------------
      
       _subListener(type, listener) {
           this._.listeners_wrapper = this._.listeners_wrapper ?? new Map();
@@ -345,8 +350,8 @@
 
       _downEmit(type, ...args) {
           this._.children.forEach((node) => {
-              node._selfEmit(type, ...args);
               node._downEmit(type, ...args);
+              node._selfEmit(type, ...args);
           });
       }
       
@@ -402,14 +407,14 @@
       return element;
   }
 
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
   // screen
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
 
   function Screen({ width, height, objectFit = 'contain' }) {
       this.nestElement({ style: 'position: relative; width: 100%; height: 100%; overflow: hidden;' });
-      this.nestElement({ style: 'position: absolute; inset: 0; margin: auto; ' });
-      this.nestElement({ style: 'position: relative; width: 100%; height: 100%; ' });
+      this.nestElement({ style: 'position: absolute; inset: 0; margin: auto;' });
+      this.nestElement({ style: 'position: relative; width: 100%; height: 100%;' });
       const outer = this.element.parentElement;
 
       const node = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
@@ -452,9 +457,9 @@
   }
 
 
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
   // draw event
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
 
   function DrawEvent({ }) {
       const base = xnew();
@@ -464,7 +469,7 @@
       let [id, start, end] = [null, null, null];
       base.on('mousedown touchstart', down);
 
-      function down (event) {
+      function down(event) {
           if (id !== null) return;
           const position = getPosition(event, id = getId(event));
           start = position;
@@ -472,12 +477,12 @@
           self.emit('drawstart', event, { type: 'drawstart', id, start, end, });
           win.on('mousemove touchmove', move);
           win.on('mouseup touchend', up);
-      }    function move (event) {
+      }    function move(event) {
           const position = getPosition(event, id);
           const delta = { x: position.x - end.x, y: position.y - end.y };
           end = position;
           self.emit('drawmove', event, { type: 'drawmove', id, start, end, delta, });
-      }    function up (event) {
+      }    function up(event) {
           const position = getPosition(event, id);
           self.emit('drawend', event, { type: 'drawend', id, position, });
           [id, start, end] = [null, null, null];
@@ -510,9 +515,9 @@
   }
 
 
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
   // audio 
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
 
   let AUDIO_CONTEXT = null;
   let AUDIO_GAIN_NODE = null;
@@ -558,9 +563,9 @@
       }
   }
 
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
   // analog stick
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
 
   function AnalogStick({ size = 160, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
       this.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;`, });
@@ -607,9 +612,9 @@
   }
 
 
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
   // circle button
-  //--------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------------------------------
 
   function CircleButton({ size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
       this.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px;`, });

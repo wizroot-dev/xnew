@@ -5,39 +5,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>sample01-define</title>
+    <title>sample01-callback</title>
 
     <script src="../xnew.js"></script>
 </head>
 
 <body>
     <script>
-        const target = xnew(function () {
-            this.nestElement({ tag: 'p', style: 'padding: 8px;' });
-            let counter = 0;
-            this.useEffect(() => {
-
-            }, []);
-            return {
-                deps: [counter, ],
-                effect: () => {
-                    this.element.textContent = counter + ' clicked';
-                },
-                counter: {
-                    set: (value) => { counter = value; this.update(); },
-                    get: () => counter,
-                },
-            };
-        });
-
         xnew(function () {
-            this.nestElement({ tag: 'button', style: 'padding: 8px;' }, 'click me');
+            this.nestElement({ tag: 'p', style: 'padding: 8px;' });
 
-            this.on('click', () => {
-                target.counter++;
-            })
+            this.setCallback((node, counter) => {
+                node.element.textContent = 'counter: ' + counter;
+                return counter + 1 < 10 ? true : false;
+            }, 100);
         });
-        
     </script>
 </body>
 

@@ -1,13 +1,13 @@
 import { xnew } from './core';
 
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // screen
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 
 export function Screen({ width, height, objectFit = 'contain' }) {
     this.nestElement({ style: 'position: relative; width: 100%; height: 100%; overflow: hidden;' });
-    this.nestElement({ style: 'position: absolute; inset: 0; margin: auto; ' });
-    this.nestElement({ style: 'position: relative; width: 100%; height: 100%; ' });
+    this.nestElement({ style: 'position: absolute; inset: 0; margin: auto;' });
+    this.nestElement({ style: 'position: relative; width: 100%; height: 100%;' });
     const outer = this.element.parentElement;
 
     const node = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
@@ -50,9 +50,9 @@ export function Screen({ width, height, objectFit = 'contain' }) {
 }
 
 
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // draw event
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 
 export function DrawEvent({ }) {
     const base = xnew();
@@ -62,7 +62,7 @@ export function DrawEvent({ }) {
     let [id, start, end] = [null, null, null];
     base.on('mousedown touchstart', down);
 
-    function down (event) {
+    function down(event) {
         if (id !== null) return;
         const position = getPosition(event, id = getId(event));
         start = position;
@@ -71,13 +71,13 @@ export function DrawEvent({ }) {
         win.on('mousemove touchmove', move);
         win.on('mouseup touchend', up);
     };
-    function move (event) {
+    function move(event) {
         const position = getPosition(event, id);
         const delta = { x: position.x - end.x, y: position.y - end.y };
         end = position;
         self.emit('drawmove', event, { type: 'drawmove', id, start, end, delta, });
     };
-    function up (event) {
+    function up(event) {
         const position = getPosition(event, id);
         self.emit('drawend', event, { type: 'drawend', id, position, });
         [id, start, end] = [null, null, null];
@@ -111,9 +111,9 @@ export function DrawEvent({ }) {
 }
 
 
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // audio 
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 
 let AUDIO_CONTEXT = null;
 let AUDIO_GAIN_NODE = null;
@@ -159,9 +159,9 @@ export function AudioController() {
     }
 }
 
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // analog stick
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 
 export function AnalogStick({ size = 160, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
     this.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;`, });
@@ -208,9 +208,9 @@ export function AnalogStick({ size = 160, fill = '#FFF', fillOpacity = 0.8, stro
 }
 
 
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // circle button
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 
 export function CircleButton({ size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
     this.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px;`, });

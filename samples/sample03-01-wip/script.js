@@ -1,23 +1,24 @@
 
 document.addEventListener('DOMContentLoaded', function() {
-    xnew(Main);
+    main();
 });
 
-function Main() {
-    const [width, height] = [800, 600];
+function main() {
+    xnew(function () {
+        xnew(Input);
 
-    xnew(Input);
-
-    xnew(xnex.Screen, { width, height }, function () {
-        const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width, height, background: '#000000', backgroundAlpha: 0.1 });
-        const scene = new PIXI.Container();
-        xnew(Title, { scene, width, height });
-
-        return {
-            animate: () => {
-                renderer.render(scene)
-            },
-        };
+        xnew(xnex.Screen, { width: 800, height: 600 }, function () {
+            const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.width, height: this.height, background: '#000000', backgroundAlpha: 0.1 });
+    
+            const scene = new PIXI.Container();
+            xnew(Title, { scene, width: this.width, height: this.height });
+    
+            return {
+                animate: () => {
+                    renderer.render(scene)
+                },
+            };
+        });
     });
 }
 
