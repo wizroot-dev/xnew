@@ -1,24 +1,19 @@
 
-document.addEventListener('DOMContentLoaded', function() {
-    main();
-});
 
-function main() {
-    xnew(function () {
-        xnew(Input);
+function Main() {
+    xnew(Input);
 
-        xnew(xnex.Screen, { width: 800, height: 600 }, function () {
-            const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.width, height: this.height, background: '#000000', backgroundAlpha: 0.1 });
-    
-            const scene = new PIXI.Container();
-            xnew(Title, { scene, width: this.width, height: this.height });
-    
-            return {
-                animate: () => {
-                    renderer.render(scene)
-                },
-            };
-        });
+    xnew(xnex.Screen, { width: 800, height: 600 }, function () {
+        const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.width, height: this.height, background: '#000000', backgroundAlpha: 0.1 });
+
+        const scene = new PIXI.Container();
+        xnew(Title, { scene, width: this.width, height: this.height });
+
+        return {
+            animate: () => {
+                renderer.render(scene)
+            },
+        };
     });
 }
 
@@ -49,29 +44,10 @@ function Input() {
         }
     }
 }
+
 function Title({ scene, width, height }) {
-    // this.nest({ tag: 'div', style: 'position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;' });
-    // const text = xnew({ style: 'font-size: 30px; cursor: pointer;' }, 'start');
     
-    const style = new PIXI.TextStyle({
-        fontFamily: 'Arial',
-        fontSize: 36,
-        fontStyle: 'italic',
-        fontWeight: 'bold',
-        fill: ['#ffffff', '#00ff99'], // gradient
-        stroke: '#4a1850',
-        strokeThickness: 5,
-        dropShadow: true,
-        dropShadowColor: '#000000',
-        dropShadowBlur: 4,
-        dropShadowAngle: Math.PI / 6,
-        dropShadowDistance: 6,
-        wordWrap: true,
-        wordWrapWidth: 440,
-        lineJoin: 'round',
-    });
-    
-    const text = new PIXI.Text('touch start', style);
+    const text = new PIXI.Text('touch start');
     text.x = width / 2;
     text.y = height / 2;
     text.pivot.x = text.width / 2;
@@ -99,7 +75,7 @@ function Game({ scene, width, height }) {
 
     const addEnemy = () => {
         const enemy = xnew(Enemy, { container, width, height, player });
-        //this.callback(addEnemy, delay, 1);
+        this.setTimer(delay, addEnemy);
     }
     addEnemy();
 
@@ -116,28 +92,10 @@ function Game({ scene, width, height }) {
         },
     };
 }
+
 function GameOver({ scene, width, height }) {
-    
   
-    const style = new PIXI.TextStyle({
-        fontFamily: 'Arial',
-        fontSize: 36,
-        fontStyle: 'italic',
-        fontWeight: 'bold',
-        fill: ['#ffffff', '#00ff99'], // gradient
-        stroke: '#4a1850',
-        strokeThickness: 5,
-        dropShadow: true,
-        dropShadowColor: '#000000',
-        dropShadowBlur: 4,
-        dropShadowAngle: Math.PI / 6,
-        dropShadowDistance: 6,
-        wordWrap: true,
-        wordWrapWidth: 440,
-        lineJoin: 'round',
-    });
-    
-    const text = new PIXI.Text('game over', style);
+    const text = new PIXI.Text('game over');
     text.x = width / 2;
     text.y = height / 2;
     text.pivot.x = text.width / 2;
@@ -148,7 +106,7 @@ function GameOver({ scene, width, height }) {
     this.on('click', () => {
         xnew(this.parent, Title, { scene, width, height })
         this.finalize();
-    })
+    });
     return {
         finalize: () => {
             scene.removeChild(text);

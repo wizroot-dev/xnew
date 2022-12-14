@@ -528,46 +528,38 @@
   //----------------------------------------------------------------------------------------------------
 
   let AUDIO_CONTEXT = null;
-  let AUDIO_GAIN_NODE = null;
 
   function _AudioContext() {
       AUDIO_CONTEXT = AUDIO_CONTEXT ?? (new (window.AudioContext || window.webkitAudioContext)());
       return AUDIO_CONTEXT;
   }
-  function _AudioGainNode() {
-      AUDIO_GAIN_NODE = AUDIO_GAIN_NODE ?? _AudioContext().createGain();
-      return AUDIO_GAIN_NODE;
-  }
 
   function Audio({ url }) {
-      this.stop();
-      let buffer, source;
+      let source = null;
+      let buffer;
+
+      const node = _AudioContext().createGain();
 
       return {
           promise: fetch(url)
               .then((response) => response.arrayBuffer())
               .then((response) => _AudioContext().decodeAudioData(response))
               .then((response) => buffer = response),
-          start: () => {
+          play: () => {
+              this.pause();
               source = _AudioContext().createBufferSource();
               source.buffer = buffer;
-              source.connect(_AudioGainNode()).connect(_AudioContext().destination);
+              source.connect(node).connect(_AudioContext().destination);
               source.start(0);
           },
-          stop: () => {
-              source.stop();
-          }
-      }
-  }
-
-  function AudioController() {
-      const node = _AudioGainNode();
-      
-      return {
+          pause: () => {
+              source?.stop();
+              source = null;
+          },
           volume: {
               set: (value) => node.gain.value = value,
               get: () => node.gain.value,
-          }
+          },
       }
   }
 
@@ -658,7 +650,6 @@
     Screen: Screen,
     DrawEvent: DrawEvent,
     Audio: Audio,
-    AudioController: AudioController,
     AnalogStick: AnalogStick,
     CircleButton: CircleButton
   };
