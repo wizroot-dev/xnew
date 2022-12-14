@@ -6,7 +6,7 @@ Useful for creating apps and games with dynamic scenes.
 - via cdn  
   
 ```
-<script src="https://unpkg.com/xnew@0.1.0/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@0.1.x/dist/xnew.js"></script>
 ```
 
 - via npm
