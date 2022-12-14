@@ -10,7 +10,7 @@
   // parent  : node: object (in many cases, this is omitted and set automatically)
   // element : two pattern
   //           1. html element or window: object (e.g. document.querySelector('#hoge'))
-  //           2. attributes to create a html element : object (e.g. { tag: 'div', style: '' })
+  //           2. attributes to create a html element: object (e.g. { tag: 'div', style: '' })
   // content : two pattern
   //           a. innerHTML: string
   //           b. component: function, props: object
@@ -191,8 +191,8 @@
               }
               
               // callback
-              this._.callbackIds?.forEach((handle) => {
-                  this.clearCallback(handle);
+              this._.timerIds?.forEach((id) => {
+                  this.clearCallback(id);
               });
 
               if (this.element !== null && this.element !== this._.base) {
@@ -226,35 +226,35 @@
           this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
       }
 
-      setCallback(func, delay, ...args) {
-          const handle = {};
-          this._setCallback(handle, func, delay, ...args);
-          return handle;
+      setTimer(delay, callback, ...args) {
+          if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
+              return this._setTimer(delay, callback, ...args);
+          }
       }
 
-      _setCallback(handle, func, delay, ...args) {
-          Object.assign(handle, { id: null, counter: 0 });
+      _setTimer(delay, callback, ...args) {
+          const data = { id: null, counter: 0 };
 
-          let callback;
-          callback = () => {
-              const response = Node.wrap(self, func, handle.counter, ...args);
-              handle.counter++;
+          const func = () => {
+              const response = Node.wrap(this, callback, { delay, counter: data.counter }, ...args);
+              data.counter++;
               if (response === true) {
-                  handle.id = setTimeout(callback, delay);
-              } else if (Array.isArray(response) && response.length >= 2) {
-                  this._setCallback(handle, response[0], response[1], ...response.slice(2));
+                  data.id = setTimeout(func, delay);
               }
           };
-          handle.id = setTimeout(callback, delay);
+          data.id = setTimeout(func, delay);
 
-          this._.callbackIds = this._.callbackIds ?? new Set;
-          this._.callbackIds.add(handle);
+          const id = Node.timerId++;
+          this._.timerIds = this._.timerIds ?? new Map;
+          this._.timerIds.set(id, data);
+          return id;
       }
 
-      clearCallback(handle) {
-          if (this._.callbackIds?.has(handle)) {
-              clearTimeout(handle.id);
-              this._.callbackIds.delete(handle);
+      clearTimer(id) {
+          if (this._.timerIds?.has(id)) {
+              const data = this._.timerIds.get(id);
+              clearTimeout(data.id);
+              this._.timerIds.delete(id);
           }
       }
 
@@ -271,10 +271,12 @@
       }
 
       on(type, listener, options) {
-          if (typeof type === 'string' && type.split(' ').length > 1) {
-              type.split(' ').forEach((type) => this._on(type, listener, options));
-          } else {
-              this._on(type, listener, options);
+          if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
+              if (typeof type === 'string' && type.split(' ').length > 1) {
+                  type.split(' ').forEach((type) => this._on(type, listener, options));
+              } else {
+                  this._on(type, listener, options);
+              }
           }
       }
 
@@ -291,10 +293,12 @@
       }
 
       off(type, listener) {
-          if (typeof type === 'string' && type.split(' ').length > 1) {
-              type.split(' ').forEach((type) => this._off(type, listener));
-          } else {
-              this._off(type, listener);
+          if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
+              if (typeof type === 'string' && type.split(' ').length > 1) {
+                  type.split(' ').forEach((type) => this._off(type, listener));
+              } else {
+                  this._off(type, listener);
+              }
           }
       }
 
@@ -331,13 +335,15 @@
       }
 
       emit(type, ...args) {
-          if (type[0] === '#') {
-              let node = this;
-              while (node.parent) node = node.parent;
-              node._downEmit(type, ...args);
-              node._selfEmit(type, ...args);
-          } else {
-              this._selfEmit(type, ...args);
+          if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
+              if (type[0] === '#') {
+                  let node = this;
+                  while (node.parent) node = node.parent;
+                  node._downEmit(type, ...args);
+                  node._selfEmit(type, ...args);
+              } else {
+                  this._selfEmit(type, ...args);
+              }
           }
       }
 
@@ -354,6 +360,8 @@
               node._selfEmit(type, ...args);
           });
       }
+      
+      static timerId = 0;
       
       static current = { node: null, parent: null };
 
