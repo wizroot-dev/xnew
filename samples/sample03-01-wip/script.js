@@ -1,10 +1,26 @@
 
 document.addEventListener('DOMContentLoaded', function() {
+    main();
+});
+
+function main() {
     xnew(function () {
         xnew(Input);
-        xnew(Main);
+
+        xnew(xnex.Screen, { width: 800, height: 600 }, function () {
+            const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.width, height: this.height, background: '#000000', backgroundAlpha: 0.1 });
+    
+            const scene = new PIXI.Container();
+            xnew(Title, { scene, width: this.width, height: this.height });
+    
+            return {
+                animate: () => {
+                    renderer.render(scene)
+                },
+            };
+        });
     });
-});
+}
 
 function Input() {
     if (navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/)) {
@@ -33,24 +49,6 @@ function Input() {
         }
     }
 }
-
-function Main() {
-    const [width, height] = [800, 600];
-
-    xnew(xnex.Screen, { width, height }, function () {
-        const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width, height, background: '#000000', backgroundAlpha: 0.1 });
-        const scene = new PIXI.Container();
-        xnew(Game, { scene, width, height });
-
-        return {
-            animate: () => {
-                renderer.render(scene)
-            },
-        };
-    });
-}
-
-
 function Title({ scene, width, height }) {
     // this.nest({ tag: 'div', style: 'position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;' });
     // const text = xnew({ style: 'font-size: 30px; cursor: pointer;' }, 'start');
@@ -101,7 +99,7 @@ function Game({ scene, width, height }) {
 
     const addEnemy = () => {
         const enemy = xnew(Enemy, { container, width, height, player });
-        this.callback(addEnemy, delay, 1);
+        //this.callback(addEnemy, delay, 1);
     }
     addEnemy();
 

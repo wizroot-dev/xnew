@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>sample01-timer</title>
+
+    <script src="../xnew.js"></script>
+</head>
+
+<body>
+    <script>
+        xnew(function () {
+            this.nestElement({ tag: 'p', style: 'padding: 8px;' });
+            this.element.textContent = 'counter: 0';
+
+            const id = this.setTimer(1000, (status) => {
+                this.element.textContent = 'counter: ' + (status.counter + 1);
+                return true;
+            });
+
+            this.setTimer(5000, (status) => {
+                this.clearTimer(id);
+            });
+        });
+    </script>
+</body>
+
+</html>

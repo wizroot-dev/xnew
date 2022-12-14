@@ -1,30 +1,31 @@
-
-//--------------------------------------------------------------------------------
-// function xnew (parent, element, content)
+//----------------------------------------------------------------------------------------------------
+// function xnew (parent, element, ...content)
 //
-// parent  : node: object
-// element : html element, window or attributes to create it: object
+// parent  : node: object (in many cases, this is omitted and set automatically)
+// element : two pattern
+//           1. html element or window: object (e.g. document.querySelector('#hoge'))
+//           2. attributes to create a html element: object (e.g. { tag: 'div', style: '' })
 // content : two pattern
-//           1. innerHTML: string
-//           2. component: function, props: object
-//--------------------------------------------------------------------------------
+//           a. innerHTML: string
+//           b. component: function, props: object
+//----------------------------------------------------------------------------------------------------
 
 export function xnew(...args) {
     let counter = 0;
 
     const parent = assign((target) => target instanceof Node || target === null);
     const element = assign((target) => target instanceof Element || target === window || (typeof target === 'object' && target !== null));
+    const content = args.slice(counter);
 
     function assign(check) {
         return (args.length > counter && (check(args[counter]) || args[counter] === undefined)) ? args[counter++] : undefined;
     }
-    return new Node(parent, element, ...args.slice(counter));
+    return new Node(parent, element, ...content);
 }
 
-
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // node
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 
 export class Node {
     constructor(parent, element, ...content) {
@@ -32,7 +33,7 @@ export class Node {
         this._ = {};
         this._.children = new Set();  // child nodes
         this._.phase = 'stopped';     // [stopped ->before start ->started ->before stop ->...] ->before finalize ->finalized
-        this._.system = {};
+        this._.defines = {};
         this._.listeners = new Map();
         
         // parent Node class
@@ -53,13 +54,15 @@ export class Node {
         // global data
         this.global = this.parent?.global ?? {};
 
+        this.start();
         if (content.length > 0) {
-            if (typeof content[0] === 'function') {
-                this.start();
-                for (let i = 0; typeof content[i] === 'function'; ) {
+            let i = 0;
+            if (typeof content[i] === 'function') {
+                this.extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
+                if (typeof content[i] === 'function') {
                     this.extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
                 }
-            } else if (typeof content[0] === 'string' && this._.base !== this.element) {
+            } else if (typeof content[i] === 'string' && this._.base !== this.element) {
                 this.element.innerHTML = content[0];
             }
         }
@@ -75,36 +78,22 @@ export class Node {
         }
     }
     
-    //--------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------------
     // basic
-    //--------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------------
     
     _extend(component, props) {
-        const defines = Node.wrap(this, component.bind(this), props ?? {}, this._.defines ?? {});
+        const defines = Node.wrap(this, component.bind(this), props ?? {}, Object.assign({}, this._.defines ?? {}));
 
         if (typeof defines === 'object' && defines !== null) {
-            this._.defines = this._.defines ? Object.assign(this._.defines, defines) : defines;
-
-            if (defines.promise instanceof Promise) {
-                this._.system.promise = this._.system.promise;
-            }
-            
             Object.keys(defines).forEach((key) => {
-                const value = defines[key];
                 if (['promise', 'start', 'animate', 'stop', 'finalize'].includes(key)) {
-                    if (typeof value === 'function') {
-                        this._.system[key] = (...args) => Node.wrap(this, value, ...args);
-                    }
-                } else {
-                    if (this[key] && this._.system[key] === undefined) {
-                        console.warn(`node define error: [${key}] already exists.`);
-                        return;
-                    }
+                    this._.defines[key] = defines[key];
+                } else if (this._.defines[key] || !this[key]) {
+                    if (typeof defines[key] === 'object' || typeof defines[key] === 'function') {
+                        this._.defines[key] = defines[key];
 
-                    if (typeof value === 'function') {
-                        this[key] = (...args) => Node.wrap(this, value, ...args);
-                    } else if (typeof value === 'object') {
-                        const object = value;
+                        const object = typeof defines[key] === 'object' ? defines[key] : { value: defines[key] };
 
                         let descripters = {};
                         Object.keys(object).forEach((key) => {
@@ -114,61 +103,39 @@ export class Node {
                             } else {
                                 descripters[key] = value;
                             }
-                        })
+                        });
                         Object.defineProperty(this, key, descripters);
+                    } else {
+                        console.error(`xnew define error: "${key}" is improper format.`);
                     }
+                } else {
+                    console.error(`xnew define error: "${key}" already exists.`);
                 }
             });
         }
     }
 
     extend(component, props) {
-        this._extend(component, props);
-    }
-
-    finalize() {
-        this.stop();
-        if (this._.phase !== 'before finalize' && this._.phase !== 'finalized') {
-            this._.phase = 'before finalize';
-            this._finalize();
+        if (this._.phase === 'before stop' || this._.phase === 'stopped' || this._.phase === 'before start') {
+            this._extend(component, props);
         }
     }
 
-    _finalize() {
-        if (this._.phase === 'before finalize') {
-
-            this._.children.forEach((node) => node.finalize());
-            Node.wrap(this, this._.system.finalize);
-
-            this.off();
-
-            // animation
-            if (this._.frameId) {
-                cancelAnimationFrame(this._.frameId);
-            }
-
-            if (this.element !== null && this.element !== this._.base) {
-                let target = this.element;
-                while (target.parentElement !== null && target.parentElement !== this._.base) { target = target.parentElement; }
-                if (target.parentElement === this._.base) {
-                    this._.base.removeChild(target);
-                }
-            }
-            this._.phase = 'finalized';
-        }
+    get promise() {
+        return this._.defines.promise ?? Promise.resolve();
     }
 
     start() {
         if (this._.phase === 'before stop' || this._.phase === 'stopped') {
             this._.phase = 'before start';
-            setTimeout(() => this.promise().then(() => this._start()), 0);
+            setTimeout(() => this.promise.then(() => this._start()), 0);
         }
     }
 
     _start() {
         if (this._.phase === 'before start') {
             this._.start = new Date().getTime();
-            Node.wrap(this, this._.system.start);
+            Node.wrap(this, this._.defines.start);
             this._.phase = 'started';
         }
     }
@@ -176,7 +143,7 @@ export class Node {
     _animate(time) {
         if (this._.phase === 'started') {
             this._.children.forEach((node) => node._animate(time));
-            Node.wrap(this, this._.system.animate, time);
+            Node.wrap(this, this._.defines.animate, time);
         }
     }
 
@@ -191,13 +158,46 @@ export class Node {
 
     _stop() {
         if (this._.phase === 'before stop') {
-            Node.wrap(this, this._.system.stop);
+            Node.wrap(this, this._.defines.stop);
             this._.phase = 'stopped';
         }
     }
 
-    toggle() {
-        (this._.phase === 'before start' || this._.phase === 'started') ? this.stop() : this.start(...args);
+    finalize() {
+        this.stop();
+        if (this._.phase !== 'before finalize' && this._.phase !== 'finalized') {
+            this._.phase = 'before finalize';
+            this._finalize();
+        }
+    }
+
+    _finalize() {
+        if (this._.phase === 'before finalize') {
+
+            this._.children.forEach((node) => node.finalize());
+            Node.wrap(this, this._.defines.finalize);
+
+            this.off();
+
+            // animation
+            if (this._.frameId) {
+                cancelAnimationFrame(this._.frameId);
+            }
+            
+            // callback
+            this._.timerIds?.forEach((id) => {
+                this.clearCallback(id);
+            });
+
+            if (this.element !== null && this.element !== this._.base) {
+                let target = this.element;
+                while (target.parentElement !== null && target.parentElement !== this._.base) { target = target.parentElement; }
+                if (target.parentElement === this._.base) {
+                    this._.base.removeChild(target);
+                }
+            }
+            this._.phase = 'finalized';
+        }
     }
 
     isStarted() {
@@ -212,53 +212,49 @@ export class Node {
         return this._.phase === 'finalized';
     }
 
-    promise() {
-        return this._.system.promise ?? Promise.resolve();
-    }
-
-    //--------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------------
     // utilities
-    //--------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------------
   
-    nest(attributes, inner) {
+    nestElement(attributes, inner) {
         this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
     }
 
-    callback(func, delay, limit = 0) {
-        let id;
-        const callback = {
-            counter: 0,
-            clear: () => {
-                if (this._.callbackIds.has(id)) {
-                    limit === 1 ? clearTimeout(id) : clearInterval(id);
-                    this._.callbackIds.delete(id);
-                }
-            }
+    setTimer(delay, callback, ...args) {
+        if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
+            return this._setTimer(delay, callback, ...args);
         }
-        if (limit === 1) {
-            id = setTimeout(() => {
-                Node.wrap(this, func, callback.counter++);
-                callback.clear();
-            }, delay);
-        } else {
-            id = setInterval(() => {
-                if (limit === 0 || callback.counter < limit) {
-                    Node.wrap(this, func, callback.counter++);
-                }
-                if (limit !== 0 && callback.counter >= limit) {
-                    callback.clear();
-                }
-            }, delay);    
-        }
-        this._.callbackIds = this._.callbackIds ?? new Set;
-        this._.callbackIds.add(id);
-
-        return callback;
     }
 
-    //--------------------------------------------------------------------------------
+    _setTimer(delay, callback, ...args) {
+        const data = { id: null, counter: 0 };
+
+        const func = () => {
+            const response = Node.wrap(this, callback, { delay, counter: data.counter }, ...args);
+            data.counter++;
+            if (response === true) {
+                data.id = setTimeout(func, delay);
+            }
+        };
+        data.id = setTimeout(func, delay);
+
+        const id = Node.timerId++;
+        this._.timerIds = this._.timerIds ?? new Map;
+        this._.timerIds.set(id, data);
+        return id;
+    }
+
+    clearTimer(id) {
+        if (this._.timerIds?.has(id)) {
+            const data = this._.timerIds.get(id);
+            clearTimeout(data.id);
+            this._.timerIds.delete(id);
+        }
+    }
+
+    //----------------------------------------------------------------------------------------------------
     // event method
-    //--------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------------
    
     _subListener(type, listener) {
         this._.listeners_wrapper = this._.listeners_wrapper ?? new Map();
@@ -269,10 +265,12 @@ export class Node {
     }
 
     on(type, listener, options) {
-        if (typeof type === 'string' && type.split(' ').length > 1) {
-            type.split(' ').forEach((type) => this._on(type, listener, options));
-        } else {
-            this._on(type, listener, options);
+        if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
+            if (typeof type === 'string' && type.split(' ').length > 1) {
+                type.split(' ').forEach((type) => this._on(type, listener, options));
+            } else {
+                this._on(type, listener, options);
+            }
         }
     }
 
@@ -289,10 +287,12 @@ export class Node {
     }
 
     off(type, listener) {
-        if (typeof type === 'string' && type.split(' ').length > 1) {
-            type.split(' ').forEach((type) => this._off(type, listener));
-        } else {
-            this._off(type, listener);
+        if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
+            if (typeof type === 'string' && type.split(' ').length > 1) {
+                type.split(' ').forEach((type) => this._off(type, listener));
+            } else {
+                this._off(type, listener);
+            }
         }
     }
 
@@ -313,16 +313,8 @@ export class Node {
         }
     }
 
-    listeners(type, listener) {
-        if (typeof type === 'string' && type.split(' ').length > 1) {
-            return [];
-        } else {
-            return this._listeners(type, listener);
-        }
-    }
-
     _listeners(type, listener) {
-        if (typeof type === 'string' && type !== '') {
+        if (typeof type === 'string') {
             if (typeof listener === 'function') {
                 if (this._.listeners.has(type) === true && this._.listeners.get(type).has(listener) === true) {
                     return [listener];
@@ -337,18 +329,20 @@ export class Node {
     }
 
     emit(type, ...args) {
-        if (type[0] === '#') {
-            let node = this;
-            while (node.parent) node = node.parent;
-            node._downEmit(type, ...args);
-            node._selfEmit(type, ...args);
-        } else {
-            this._selfEmit(type, ...args);
+        if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
+            if (type[0] === '#') {
+                let node = this;
+                while (node.parent) node = node.parent;
+                node._downEmit(type, ...args);
+                node._selfEmit(type, ...args);
+            } else {
+                this._selfEmit(type, ...args);
+            }
         }
     }
 
     _selfEmit(type, ...args) {
-        const listeners = this.listeners(type);
+        const listeners = this._listeners(type);
         if (listeners.length > 0) {
             Node.wrap(this, () => listeners.forEach((listener) => listener(...args)));
         }
@@ -356,10 +350,12 @@ export class Node {
 
     _downEmit(type, ...args) {
         this._.children.forEach((node) => {
-            node._selfEmit(type, ...args);
             node._downEmit(type, ...args);
+            node._selfEmit(type, ...args);
         });
     }
+    
+    static timerId = 0;
     
     static current = { node: null, parent: null };
 

@@ -7,61 +7,55 @@
     <title>example02-canvas</title>
 
     <script src="../pixi.min.js"></script>
-    <script src="../../dist/xnew.js"></script>
+    <script src="../xnew.js"></script>
 </head>
 
 <body style="height: 100vh; margin: 0;">
    <script>
-        const element = { style: 'position: relative; margin: 8px auto 8px; width: 400px; height: 300px; border: 1px solid #A0A;' };
-        
+        const style = 'position: relative; margin: 8px auto; width: 400px; height: 300px; border: 1px solid #A0A';
+
         // case1
-        xnew(element, function () {
-            const canvas = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; object-fit: fill;' });
-            xnew(Content, { canvas: canvas.element });
+        xnew({ style }, function () {
+            const node = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: fill;' });
+            xnew(Content, { canvas: node.element });
         });
 
         // case2
-        xnew(element, function () {
-            const canvas = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; object-fit: cover;' });
-            xnew(Content, { canvas: canvas.element });
+        xnew({ style }, function () {
+            const node = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: cover;' });
+            xnew(Content, { canvas: node.element });
         });
 
         // case3
-        xnew(element, function() {
-            const canvas = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; object-fit: contain;' });
-            xnew(Content, { canvas: canvas.element });
+        xnew({ style }, function() {
+            const node = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain;' });
+            xnew(Content, { canvas: node.element });
         });
 
         // case4
-        xnew(element, function() {
-            xnew(xnex.Screen, { aspect: 2 / 1 }, function () {
-                const canvas = xnew({ tag: 'canvas', width: 200, height: 100, style: 'width: 100%; height: 100%;' });
-                xnew(Content, { canvas: canvas.element });
+        xnew({ style }, function() {
+            xnew(xnex.Screen, { width: 200, height: 100 }, function () {
+                xnew(Content, { canvas: this.canvas });
             });
         });
 
         function Content({ canvas }) {
             const context = canvas.getContext('2d');
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const r = Math.min(cx, cy) * 0.5;
 
-            return {
-                animate: (time) => {
-                    const cx = canvas.width / 2;
-                    const cy = canvas.height / 2;
-                    const r = Math.min(cx, cy) * 0.5;
+            context.fillStyle = "rgb(0,0,0)";
+            context.fillRect(0, 0, canvas.width, canvas.height);
 
-                    context.fillStyle = "rgb(0,0,0)";
-                    context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = "rgb(200,0,100)";
+            context.fillRect(cx - 0.6 * cx - r, cy - r, r * 2, r * 2);
 
-                    context.fillStyle = "rgb(200,0,100)";
-                    context.fillRect(cx - 0.6 * cx - r, cy - r, r * 2, r * 2);
+            context.fillStyle = "rgb(100,200,0)";
+            context.fillRect(cx + 0.0 * cx - r, cy - r, r * 2, r * 2);
 
-                    context.fillStyle = "rgb(100,200,0)";
-                    context.fillRect(cx + 0.0 * cx - r, cy - r, r * 2, r * 2);
-
-                    context.fillStyle = "rgb(0,100,200)";
-                    context.fillRect(cx + 0.6 * cx - r, cy - r, r * 2, r * 2);
-                },
-            };
+            context.fillStyle = "rgb(0,100,200)";
+            context.fillRect(cx + 0.6 * cx - r, cy - r, r * 2, r * 2);
         }
 
     </script>
