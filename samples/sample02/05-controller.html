@@ -16,10 +16,10 @@
         xnew(function() {
             xnew(Input);
 
-            xnew(xnex.Screen, { width: 800, height: 450 }, function () {
-                const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.canvas.width, height: this.canvas.height });
+            xnew(xnex.Screen, { width: 800, height: 450 }, function ({ node }) {
+                const renderer = PIXI.autoDetectRenderer({ view: node.canvas, width: node.canvas.width, height: node.canvas.height });
                 const scene = new PIXI.Container();
-                [scene.x, scene.y] = [this.canvas.width / 2, this.canvas.height / 2];
+                [scene.x, scene.y] = [node.canvas.width / 2, node.canvas.height / 2];
                 
                 xnew(MyBox, { scene });
                 return {
@@ -41,7 +41,7 @@
             })
         }
 
-        function MyBox({ scene }) {
+        function MyBox({ node, scene }) {
             const object = scene.addChild(new PIXI.Container());
             const graphics = object.addChild(new PIXI.Graphics());
             graphics.beginFill(0xff2266);
@@ -50,10 +50,10 @@
 
             let move = null;
             let direction = +1;
-            this.on('#move', ({ vector }) => {
+            node.on('#move', ({ vector }) => {
                 move = vector;
             });
-            this.on('#action', () => {
+            node.on('#action', () => {
                 direction *= -1;
             });
 

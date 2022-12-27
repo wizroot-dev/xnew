@@ -3,7 +3,7 @@
 function Main() {
     xnew(Input);
 
-    xnew(xnex.Screen, { node, width: 800, height: 600 }, function () {
+    xnew(xnex.Screen, { width: 800, height: 600 }, function ({ node }) {
         const renderer = PIXI.autoDetectRenderer({ view: node.canvas, width: node.width, height: node.height, background: '#000000', backgroundAlpha: 0.1 });
 
         const scene = new PIXI.Container();

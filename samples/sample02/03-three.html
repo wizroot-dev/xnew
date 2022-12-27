@@ -12,9 +12,9 @@
 
 <body style="height: 100vh; margin: 0;">
     <script>
-        xnew(xnex.Screen, { width: 800, height: 450 }, function () {
-            const renderer = new THREE.WebGLRenderer({ canvas: this.canvas });
-            const camera = new THREE.PerspectiveCamera(45, this.canvas.width / this.canvas.height);
+        xnew(xnex.Screen, { width: 800, height: 450 }, function ({ node }) {
+            const renderer = new THREE.WebGLRenderer({ canvas: node.canvas });
+            const camera = new THREE.PerspectiveCamera(45, node.canvas.width / node.canvas.height);
             camera.position.set(0, 0, +100);
 
             const scene = new THREE.Scene();
@@ -29,7 +29,7 @@
         });
 
         // create a cube and animate
-        function MyCube({ scene }) {
+        function MyCube({ node, scene }) {
             const geometry = new THREE.BoxGeometry(40, 40, 40);
             const material = new THREE.MeshNormalMaterial();
             const object = new THREE.Mesh(geometry, material);

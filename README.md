@@ -6,7 +6,7 @@ Useful for creating apps and games with dynamic scenes.
 - via cdn  
   
 ```
-<script src="https://unpkg.com/xnew@0.1.x/dist/xnew.js"></script>
+<script src="https://unpkg.com/xnew@0.2.x/dist/xnew.js"></script>
 ```
 
 - via npm
@@ -28,11 +28,11 @@ const button = xnew(MyButton, { text: 'click me!' });
 // ...
 
 // component
-function MyButton({ text }) {
-    this.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
+function MyButton({ node, text }) {
+    node.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
     let counter = 0;
-    this.on('click', () => {
-        this.element.textContent = ++counter + ' clicked!';
+    node.on('click', () => {
+        node.element.textContent = ++counter + ' clicked!';
     })
 }
 ```
@@ -44,7 +44,7 @@ Works well with rendering libraries like three.js and pixi.js. The following sam
 
 ```
 // create canvas and setup three.js
-xnew(function () {
+xnew(function ({ node }) {
     const [width, height] = [800, 450];
     const canvas = xnew({ tag: 'canvas', width, height });
 
@@ -67,7 +67,7 @@ xnew(function () {
 
 ```
 // create a cube and animate
-function MyCube({ scene }) {
+function MyCube({ node, scene }) {
     const geometry = new THREE.BoxGeometry(40, 40, 40);
     const material = new THREE.MeshNormalMaterial();
     const object = new THREE.Mesh(geometry, material);
@@ -88,7 +88,7 @@ function MyCube({ scene }) {
 ![pixi](./images/pixi.gif)
 ```
 // create canvas and setup pixi.js
-xnew(function() {
+xnew(function({ node }) {
     const [width, height] = [800, 450];
     const canvas = xnew({ tag: 'canvas', width, height });
 
@@ -109,7 +109,7 @@ xnew(function() {
 
 ```
 // create a box and animate
-function MyBox({ scene }) {
+function MyBox({ node, scene }) {
     const object = scene.addChild(new PIXI.Container());
     const graphics = object.addChild(new PIXI.Graphics());
     graphics.beginFill(0xEA1E63);
@@ -150,7 +150,6 @@ As shown above, xnew accepts arguments (`parent`, `element`, `content`).
 - **`parent`** is a parameter that is set as the parent node. In many cases, it is omitted, and set automatically. It is set when you intentionally want to bind to another node (described later).
 - **`element`** is a parameter for html element to associate with new node. If you omit this parameter, new node's element inherits the parent node's element. If there is no parent node, it inherits `document.body` element.
 - **`content`** is a parameter that set the behavior of the node. There are two patterns. First pattern is innerHTML for new element. Second pattern is component function and its properties.  
-**Note that you have to use `function` keyword as component function, not `() => {} (arrow function)`**. This is because to bind `this` pointer in the function.
 
 ### Parent-child relationship
 If you call `xnew` like nesting, created nodes have a parent-child relationship. Child nodes hold a pointer to parent node. and Child node `element` is set based on the parent node's `element`.
@@ -160,39 +159,38 @@ If you call `xnew` like nesting, created nodes have a parent-child relationship.
 <div id="hoge"></div>
 
 <script>
-    const xnode1 = xnew(document.querySelector('#hoge'), function () {
-        // this.parent: null
-        // this.element: hoge
+    const node1 = xnew(document.querySelector('#hoge'), function ({ node }) {
+        // node.parent: null
+        // node.element: hoge
 
-        const xnode2 = xnew(function () {
-            // this.parent: xnode1
-            // this.element: hoge (equal to parent's element)
+        const node2 = xnew(function ({ node }) {
+            // node.parent: node1
+            // node.element: hoge (equal to parent's element)
         });
 
-        const xnode3 = xnew({ tag: 'div', id: 'fuga' }, function () {
-            // this.parent: xnode1
-            // this.element: fuga (as a child element of hoge)
+        const node3 = xnew({ tag: 'div', id: 'fuga' }, function ({ node }) {
+            // node.parent: node1
+            // node.element: fuga (as a child element of hoge)
         });
 
-        const xnode4 = xnew(function () {
-            // create new element and replace this.element
-            this.nestElement({ tag: 'div', id: 'piyo' };
+        const node4 = xnew(function ({ node }) {
+            // create new element and replace node.element
+            node.nestElement({ tag: 'div', id: 'piyo' };
 
-            // this.parent: xnode1
-            // this.element: piyo (as a child element of hoge)
+            // node.parent: node1
+            // node.element: piyo (as a child element of hoge)
         });
     });
 </script>
 </body>
 ```
 - If you omit `element`, new node's element is set automatically (e.g. node2, node4). 
-- Note that `this` pointer is a different value depending on the scope.
 
 ### System functions 
 A node has some system functions for basic control. You can define the detail in the response of the component function.
 
 ```
-const node = xnew(function () {
+const node = xnew(function ({ node }) {
 
     return {
         promise: new Promise((resolve, reject) => {
@@ -223,13 +221,13 @@ node.isStopped();   // ...
 node.isFinalized(); // ...
 ```
 
-- By default, nodes automatically calls start when there are created. If you want to avoid it, call `this.stop()` inside the component function.
+- By default, nodes automatically calls start when there are created. If you want to avoid it, call `node.stop()` inside the component function.
 
 
 ### Original functions
 You can define original functions unless the function is already defined.
 ```
-const node = xnew(function () {
+const node = xnew(function ({ node }) {
     let counter = 0;
 
     return {
@@ -254,18 +252,18 @@ const x = node.counter; // getter
 ### Event listener
 You can set the event listener using `on`, and fire original event using `emit`.
 ```
-const node = xnew(function () {
-    this.on('click', (event) => {
+const node = xnew(function ({ node }) {
+    node.on('click', (event) => {
         // fires when the element is clicked.
     });
 
     // original event
-    this.on('myevent', (data) => {
+    node.on('myevent', (data) => {
         // fires when emit('myevent') is called.
     });
 
-    // this.off(); // unset all listeners in the node
-    // this.off('myevent'); // unset 'myevent'
+    // node.off(); // unset all listeners in the node
+    // node.off('myevent'); // unset 'myevent'
 });
 
 node.emit('myevent', data); 
@@ -279,23 +277,23 @@ By using a timer, you can set a function to be executed after a specified time.
 const deley = 1000 // 1000 [ms]
 
 // run only once
-xnew(function () {
-    const id = this.setTimer(delay, (status) => {
+xnew(function ({ node }) {
+    const id = node.setTimer(delay, (status) => {
         // ...
     });
 });
 
 // run repeatedly
-xnew(function () {
-    const id = this.setTimer(delay, (status) => {
+xnew(function ({ node }) {
+    const id = node.setTimer(delay, (status) => {
         // ...
         return true;
     });
 });
 
 // run 10 times
-xnew(function () {
-    const id = this.setTimer(delay, (status) => {
+xnew(function ({ node }) {
+    const id = node.setTimer(delay, (status) => {
         // ...
         // status.counter = 0, 1, 2, ...
         return (status.counter + 1 < 10);
@@ -310,29 +308,29 @@ xnew(function () {
 If you want to intentionally change the parent node, set first argument of `xnew`. For example, it is set in cases such as scene changes, where you want to create a sibling node in a node.
 
 ```
-const root = xnew(function () {
+const root = xnew(function ({ node }) {
     xnew(Scene1);
 });
 
-function Scene1 () {
+function Scene1 ({ node }) {
     return {
         nextScene: () => {
-            xnew(this.parent, Scene2); // this.parent == root
-            this.finalize();
+            xnew(node.parent, Scene2); // node.parent == root
+            node.finalize();
         },
     }
 
-    // case1 : xnew(Scene2) or xnew(this, Scene2)
+    // case1 : xnew(Scene2) or xnew(node, Scene2)
     //         root -> 'Scene1' -> 'Scene2'
     // 
-    // case2 : xnew(this.parent, Scene2)
+    // case2 : xnew(node.parent, Scene2)
     //         root -> 'Scene1'
     //              -> 'Scene2'
 }
 
-function Scene2 () {
+function Scene2 ({ node }) {
     // ...
 }
 
 ```
-- If you don't set the parent node, Scene2 node will also be deleted when `this.finalize()` is called because Scene2 node is a child of Scene1 node.
+- If you don't set the parent node, Scene2 node will also be deleted when `node.finalize()` is called because Scene2 node is a child of Scene1 node.

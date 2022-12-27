@@ -83,7 +83,6 @@ export class Node {
     //----------------------------------------------------------------------------------------------------
     
     _extend(component, props) {
-        console.log('test', this);
         const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }), Object.assign({}, this._.defines ?? {}));
 
         if (typeof defines === 'object' && defines !== null) {
