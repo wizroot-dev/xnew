@@ -30,7 +30,7 @@
   }
 
   //----------------------------------------------------------------------------------------------------
-  // node
+  // x node
   //----------------------------------------------------------------------------------------------------
 
   class Node {
@@ -89,7 +89,8 @@
       //----------------------------------------------------------------------------------------------------
       
       _extend(component, props) {
-          const defines = Node.wrap(this, component.bind(this), props ?? {}, Object.assign({}, this._.defines ?? {}));
+          console.log('test', this);
+          const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }), Object.assign({}, this._.defines ?? {}));
 
           if (typeof defines === 'object' && defines !== null) {
               Object.keys(defines).forEach((key) => {
@@ -419,13 +420,13 @@
   // screen
   //----------------------------------------------------------------------------------------------------
 
-  function Screen({ width, height, objectFit = 'contain' }) {
-      this.nestElement({ style: 'position: relative; width: 100%; height: 100%; overflow: hidden;' });
-      this.nestElement({ style: 'position: absolute; inset: 0; margin: auto;' });
-      this.nestElement({ style: 'position: relative; width: 100%; height: 100%;' });
-      const outer = this.element.parentElement;
+  function Screen({ node, width, height, objectFit = 'contain' }) {
+      node.nestElement({ style: 'position: relative; width: 100%; height: 100%; overflow: hidden;' });
+      node.nestElement({ style: 'position: absolute; inset: 0; margin: auto;' });
+      node.nestElement({ style: 'position: relative; width: 100%; height: 100%;' });
+      const outer = node.element.parentElement;
 
-      const node = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
+      const canvas = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
 
       if (['fill', 'contain', 'cover'].includes(objectFit)) {
           const win = xnew(window);
@@ -435,7 +436,7 @@
               const parentHeight = outer.parentElement.clientHeight;
 
               let style = { width: '100%', height: '100%', top: '0px', left: '0px' };
-              if (objectFit === 'contain') {
+              if (objectFit === 'fill') ; else if (objectFit === 'contain') {
                   if (parentWidth < parentHeight * aspect) {
                       style.height = Math.floor(parentWidth / aspect) + 'px';
                   } else {
@@ -460,7 +461,7 @@
       return {
           width: { get: () => width },
           height: { get: () => height },
-          canvas: { get: () => node.element },
+          canvas: { get: () => canvas.element },
       }
   }
 
@@ -469,10 +470,9 @@
   // draw event
   //----------------------------------------------------------------------------------------------------
 
-  function DrawEvent({ }) {
+  function DrawEvent({ node }) {
       const base = xnew();
       const win = xnew(window);
-      const self = this;
 
       let [id, start, end] = [null, null, null];
       base.on('mousedown touchstart', down);
@@ -482,17 +482,17 @@
           const position = getPosition(event, id = getId(event));
           start = position;
           end = position;
-          self.emit('drawstart', event, { type: 'drawstart', id, start, end, });
+          node.emit('drawstart', event, { type: 'drawstart', id, start, end, });
           win.on('mousemove touchmove', move);
           win.on('mouseup touchend', up);
       }    function move(event) {
           const position = getPosition(event, id);
           const delta = { x: position.x - end.x, y: position.y - end.y };
           end = position;
-          self.emit('drawmove', event, { type: 'drawmove', id, start, end, delta, });
+          node.emit('drawmove', event, { type: 'drawmove', id, start, end, delta, });
       }    function up(event) {
           const position = getPosition(event, id);
-          self.emit('drawend', event, { type: 'drawend', id, position, });
+          node.emit('drawend', event, { type: 'drawend', id, position, });
           [id, start, end] = [null, null, null];
           win.off();
       }
@@ -517,7 +517,7 @@
               original = event;
           }
 
-          const rect = self.element.getBoundingClientRect();
+          const rect = node.element.getBoundingClientRect();
           return (original?.clientX && original?.clientY) ? { x: original.clientX - rect.left, y: original.clientY - rect.top } : { x: 0, y: 0 };
       }
   }
@@ -534,11 +534,11 @@
       return AUDIO_CONTEXT;
   }
 
-  function Audio({ url }) {
+  function Audio({ node, url }) {
       let source = null;
       let buffer;
 
-      const node = _AudioContext().createGain();
+      const gain = _AudioContext().createGain();
 
       return {
           promise: fetch(url)
@@ -546,10 +546,10 @@
               .then((response) => _AudioContext().decodeAudioData(response))
               .then((response) => buffer = response),
           play: () => {
-              this.pause();
+              node.pause();
               source = _AudioContext().createBufferSource();
               source.buffer = buffer;
-              source.connect(node).connect(_AudioContext().destination);
+              source.connect(gain).connect(_AudioContext().destination);
               source.start(0);
           },
           pause: () => {
@@ -557,8 +557,8 @@
               source = null;
           },
           volume: {
-              set: (value) => node.gain.value = value,
-              get: () => node.gain.value,
+              set: (value) => gain.gain.value = value,
+              get: () => gain.gain.value,
           },
       }
   }
@@ -567,8 +567,8 @@
   // analog stick
   //----------------------------------------------------------------------------------------------------
 
-  function AnalogStick({ size = 160, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
-      this.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;`, });
+  function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
+      node.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px; cursor: pointer; user-select: none; overflow: hidden;`, });
 
       const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
       const strokeStyle = `stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)}; stroke-linejoin: round;`;
@@ -597,7 +597,7 @@
           const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
           const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
           const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-          this.emit('stick' + phase, event, { type: 'stick' + phase, vector });
+          node.emit('stick' + phase, event, { type: 'stick' + phase, vector });
           [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
       });
 
@@ -606,7 +606,7 @@
 
           const vector = { x: 0, y: 0 };
 
-          this.emit('stickend', event, { type: 'stickend', vector });
+          node.emit('stickend', event, { type: 'stickend', vector });
           [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
       });
   }
@@ -616,8 +616,8 @@
   // circle button
   //----------------------------------------------------------------------------------------------------
 
-  function CircleButton({ size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
-      this.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px;`, });
+  function CircleButton({ node, size = 80, fill = '#FFF', fillOpacity = 0.8, stroke = '#000', strokeOpacity = 0.8, strokeWidth = 2 }) {
+      node.nestElement({ style: `position: relative; width: ${size}px; height: ${size}px;`, });
 
       const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
       const strokeStyle = `stroke-linejoin: round; stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)};`;
@@ -633,14 +633,14 @@
           if (state === 0) {
               state = 1;
               target.element.style.filter = 'brightness(90%)';
-              this.emit('buttondown', event);
+              node.emit('buttondown', event);
           }
       });
       win.on('touchend mouseup', (event) => {
           if (state === 1) {
               state = 0;
               target.element.style.filter = '';
-              this.emit('buttonup', event);
+              node.emit('buttonup', event);
           }
       });
   }

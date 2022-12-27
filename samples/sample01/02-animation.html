@@ -13,21 +13,21 @@
 <body style="height: 100vh; margin: 0; display: flex; justify-content: center; align-items: center;">
 
     <script>
-        xnew(function () {
-            this.nestElement({ tag:'div', style: 'width: 200px; height: 200px; background: #08F; '}, 'start');
+        xnew(function ({ node }) {
+            node.nestElement({ tag:'div', style: 'width: 200px; height: 200px; background: #08F; '}, 'start');
 
-            this.on('click', () => {
-                this.isStarted() ? this.stop() : this.start();
+            node.on('click', () => {
+                node.isStarted() ? node.stop() : node.start();
             });
             return {
                 start: () => {
-                    this.element.textContent = 'start';
+                    node.element.textContent = 'start';
                 },
                 animate: (time) => {
-                    this.element.style.transform = `rotate(${time / 10}deg)`;
+                    node.element.style.transform = `rotate(${time / 10}deg)`;
                 },
                 stop: () => {
-                    this.element.textContent = 'stop';
+                    node.element.textContent = 'stop';
                 },
             };
         });

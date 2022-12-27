@@ -24,7 +24,7 @@ export function xnew(...args) {
 }
 
 //----------------------------------------------------------------------------------------------------
-// node
+// x node
 //----------------------------------------------------------------------------------------------------
 
 export class Node {
@@ -83,7 +83,8 @@ export class Node {
     //----------------------------------------------------------------------------------------------------
     
     _extend(component, props) {
-        const defines = Node.wrap(this, component.bind(this), props ?? {}, Object.assign({}, this._.defines ?? {}));
+        console.log('test', this);
+        const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }), Object.assign({}, this._.defines ?? {}));
 
         if (typeof defines === 'object' && defines !== null) {
             Object.keys(defines).forEach((key) => {

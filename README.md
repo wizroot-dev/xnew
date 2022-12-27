@@ -160,25 +160,25 @@ If you call `xnew` like nesting, created nodes have a parent-child relationship.
 <div id="hoge"></div>
 
 <script>
-    const node1 = xnew(document.querySelector('#hoge'), function () {
+    const xnode1 = xnew(document.querySelector('#hoge'), function () {
         // this.parent: null
         // this.element: hoge
 
-        const node2 = xnew(function () {
-            // this.parent: node1
+        const xnode2 = xnew(function () {
+            // this.parent: xnode1
             // this.element: hoge (equal to parent's element)
         });
 
-        const node3 = xnew({ tag: 'div', id: 'fuga' }, function () {
-            // this.parent: node1
+        const xnode3 = xnew({ tag: 'div', id: 'fuga' }, function () {
+            // this.parent: xnode1
             // this.element: fuga (as a child element of hoge)
         });
 
-        const node4 = xnew(function () {
+        const xnode4 = xnew(function () {
             // create new element and replace this.element
             this.nestElement({ tag: 'div', id: 'piyo' };
 
-            // this.parent: node1
+            // this.parent: xnode1
             // this.element: piyo (as a child element of hoge)
         });
     });
