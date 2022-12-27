@@ -17,25 +17,25 @@
             const button2 = xnew(MyButton2, { text: 'click me!' });
         });
 
-        function MyButton1({ text }) {
-            this.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
+        function MyButton1({ node, text }) {
+            node.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
 
             let counter = 0;
-            this.on('click', () => this.emit('countup'));
+            node.on('click', () => node.emit('countup'));
 
-            this.on('countup #countup', () => {
-                this.element.textContent = ++counter + ' clicked';
+            node.on('countup #countup', () => {
+                node.element.textContent = ++counter + ' clicked';
             })
         }
 
-        function MyButton2({ text }) {
-            this.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
+        function MyButton2({ node, text }) {
+            node.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
 
             let counter = 0;
-            this.on('click', () => this.emit('#countup'));
+            node.on('click', () => node.emit('#countup'));
 
-            this.on('#countup', () => {
-                this.element.textContent = ++counter + ' clicked';
+            node.on('#countup', () => {
+                node.element.textContent = ++counter + ' clicked';
             })
         }
 

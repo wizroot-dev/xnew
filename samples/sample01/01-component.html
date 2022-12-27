@@ -15,12 +15,12 @@
         const button = xnew(MyButton, { text: 'click me!' });
 
         // component function
-        function MyButton({ text }) {
-            this.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
+        function MyButton({ node, text }) {
+            node.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
 
             let counter = 0;
-            this.on('click', () => {
-                this.element.textContent = ++counter + ' clicked';
+            node.on('click', () => {
+                node.element.textContent = ++counter + ' clicked';
             })
         }
 

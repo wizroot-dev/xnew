@@ -12,10 +12,10 @@
 
 <body style="height: 100vh; margin: 0;">
     <script>
-        xnew(xnex.Screen, { width: 800, height: 450 }, function () {
-            const renderer = PIXI.autoDetectRenderer({ view: this.canvas, width: this.width, height: this.height });
+        xnew(xnex.Screen, { width: 800, height: 450 }, function ({ node }) {
+            const renderer = PIXI.autoDetectRenderer({ view: node.canvas, width: node.width, height: node.height });
             const scene = new PIXI.Container();
-            [scene.x, scene.y] = [this.width / 2, this.height / 2];
+            [scene.x, scene.y] = [node.width / 2, node.height / 2];
           
             xnew(MyBox, { scene });
             return {
@@ -25,7 +25,7 @@
             };
         });
 
-        function MyBox({ scene }) {
+        function MyBox({ node, scene }) {
             const object = scene.addChild(new PIXI.Container());
             const graphics = object.addChild(new PIXI.Graphics());
             graphics.beginFill(0xEA1E63);

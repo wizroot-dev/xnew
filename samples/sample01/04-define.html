@@ -12,24 +12,24 @@
 
 <body>
     <script>
-        const target = xnew(function () {
-            this.nestElement({ tag: 'p', style: 'padding: 8px;' });
+        const target = xnew(function ({ node }) {
+            node.nestElement({ tag: 'p', style: 'padding: 8px;' });
             let counter = 0;
             return {
                 update: () => {
-                    this.element.textContent = counter + ' clicked';
+                    node.element.textContent = counter + ' clicked';
                 },
                 counter: {
-                    set: (value) => { counter = value; this.update(); },
+                    set: (value) => { counter = value; node.update(); },
                     get: () => counter,
                 },
             };
         });
 
-        xnew(function () {
-            this.nestElement({ tag: 'button', style: 'padding: 8px;' }, 'click me');
+        xnew(function ({ node }) {
+            node.nestElement({ tag: 'button', style: 'padding: 8px;' }, 'click me');
 
-            this.on('click', () => {
+            node.on('click', () => {
                 target.counter++;
             })
         });
