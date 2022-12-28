@@ -29,8 +29,9 @@
       return new Node(parent, element, ...content);
   }
 
+
   //----------------------------------------------------------------------------------------------------
-  // x node
+  // node
   //----------------------------------------------------------------------------------------------------
 
   class Node {
@@ -90,12 +91,22 @@
       //----------------------------------------------------------------------------------------------------
       
       _extend(component, props) {
-          const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }), Object.assign({}, this._.defines ?? {}));
+          const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }));
 
           if (typeof defines === 'object' && defines !== null) {
               Object.keys(defines).forEach((key) => {
-                  if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key)) {
-                      this._.defines[key] = defines[key];
+                  if (key === 'promise'){
+                      if (defines[key] instanceof Promise) {
+                          this._.defines[key] = this._.defines[key] ? Promise.all([this._.defines[key], defines[key]]) : defines[key];
+                      } else {
+                          console.error(`xnew define error: "${key}" is improper format.`);
+                      }
+                  } else if (['start', 'update', 'stop', 'finalize'].includes(key)) {
+                      if (typeof defines[key] === 'function') {
+                          this._.defines[key] = this._.defines[key] ? (...args) => { this._.defines[key](...args); defines[key](...args); } : defines[key];
+                      } else {
+                          console.error(`xnew define error: "${key}" is improper format.`);
+                      }
                   } else if (this._.defines[key] || !this[key]) {
                       if (typeof defines[key] === 'object' || typeof defines[key] === 'function') {
                           this._.defines[key] = defines[key];
@@ -123,7 +134,7 @@
       }
 
       extend(component, props) {
-          if (this._.phase === 'before stop' || this._.phase === 'stopped' || this._.phase === 'before start') {
+          if (this._.phase === 'stopped' || this._.phase === 'before start') {
               this._extend(component, props);
           }
       }
@@ -221,6 +232,13 @@
 
       isFinalized() {
           return this._.phase === 'finalized';
+      }
+
+      set tags(tags) {
+          this._.tags = tags;
+      }
+      get tags() {
+          return this._.tags;
       }
 
       //----------------------------------------------------------------------------------------------------

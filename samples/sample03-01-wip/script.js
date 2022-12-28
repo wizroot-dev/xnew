@@ -1,3 +1,4 @@
+import { xnew } from "../../src/core";
 
 
 function Main() {
@@ -136,6 +137,7 @@ function Player({ node, screen, scene }) {
             object.y += velocity.y * 4;
             object.x = Math.max(0, Math.min(screen.width, object.x));
             object.y = Math.max(0, Math.min(screen.height, object.y));
+            
         },
         finalize: () => {
             container.removeChild(object);
