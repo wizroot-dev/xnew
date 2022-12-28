@@ -66,7 +66,7 @@ xnew(function ({ node }) {
 ```
 
 ```
-// create a cube and update
+// create a cube and animate
 function MyCube({ node, scene }) {
     const geometry = new THREE.BoxGeometry(40, 40, 40);
     const material = new THREE.MeshNormalMaterial();
@@ -108,7 +108,7 @@ xnew(function({ node }) {
 ```
 
 ```
-// create a box and update
+// create a box and animate
 function MyBox({ node, scene }) {
     const object = scene.addChild(new PIXI.Container());
     const graphics = object.addChild(new PIXI.Graphics());
