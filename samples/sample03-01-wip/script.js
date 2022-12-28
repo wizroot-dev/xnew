@@ -76,17 +76,9 @@ function Title({ node, screen }) {
 function Game({ node, screen }) {
     const scene = screen.container.addChild(new PIXI.Container());
     
-    const objects = {};
+    const enemys = xnew(Enemys, { screen, scene });
     const player = xnew(Player, { screen, scene });
-    const ememys = [];
 
-    let delay = 100;
-
-    const addEnemy = () => {
-        const enemy = xnew(Enemy, { screen, scene, player });
-        node.setTimer(delay, addEnemy);
-    }
-    addEnemy();
 
     node.on('#gameover', () => {
         xnew(node.parent, GameOver, { screen })
@@ -155,7 +147,17 @@ function Player({ node, screen, scene }) {
     };
 }
 
-function Enemy({ node, screen, scene, player }) {
+function Enemys({ node, screen, scene }) {
+    let delay = 100;
+    const addEnemy = () => {
+        xnew(Enemy, { screen, scene });
+        node.setTimer(delay, addEnemy);
+    }
+    addEnemy();
+
+}
+
+function Enemy({ node, screen, scene }) {
     const texture = PIXI.Texture.from('enemy.png');
     const texture1 = new PIXI.Texture(texture, new PIXI.Rectangle(0, 0, 32, 32));
 

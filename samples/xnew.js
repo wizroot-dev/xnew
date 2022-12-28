@@ -37,14 +37,15 @@
       constructor(parent, element, ...content) {
           // internal data
           this._ = {};
-          this._.children = new Set();  // child nodes
           this._.phase = 'stopped';     // [stopped ->before start ->started ->before stop ->...] ->before finalize ->finalized
           this._.defines = {};
           this._.listeners = new Map();
           
           // parent Node class
           this.parent = parent instanceof Node ? parent : Node.current.node;
-          this.parent?._.children.add(this);
+          this.parent?.children.add(this);
+
+          this.children = new Set();
 
           if (element instanceof Element || element === window) {
               this._.base = element;
@@ -148,7 +149,7 @@
 
       _update(time) {
           if (this._.phase === 'started') {
-              this._.children.forEach((node) => node._update(time));
+              this.children.forEach((node) => node._update(time));
               Node.wrap(this, this._.defines.update, time);
           }
       }
@@ -180,7 +181,8 @@
       _finalize() {
           if (this._.phase === 'before finalize') {
 
-              this._.children.forEach((node) => node.finalize());
+              [...this.children].forEach((node) => node.finalize());
+              
               Node.wrap(this, this._.defines.finalize);
 
               this.off();
@@ -202,6 +204,9 @@
                       this._.base.removeChild(target);
                   }
               }
+
+              this.parent?.children.delete(this);
+
               this._.phase = 'finalized';
           }
       }
@@ -355,7 +360,7 @@
       }
 
       _downEmit(type, ...args) {
-          this._.children.forEach((node) => {
+          this.children.forEach((node) => {
               node._downEmit(type, ...args);
               node._selfEmit(type, ...args);
           });
@@ -395,7 +400,7 @@
       
       Object.keys(attributes).forEach((key) => {
           const value = attributes[key];
-          if (key === 'style'){
+          if (key === 'style') {
               if (typeof value === 'string') {
                   element.style = value;
               } else if (typeof value === 'object'){
