@@ -19,7 +19,7 @@
           
             xnew(MyBox, { scene });
             return {
-                animate: () => {
+                update: () => {
                     renderer.render(scene)
                 },
             };
@@ -33,7 +33,7 @@
             graphics.endFill();
            
             return {
-                animate: () => {
+                update: () => {
                     object.rotation += 0.01;
                 },
                 finalize: () => {

@@ -3,28 +3,34 @@
 function Main() {
     xnew(Input);
 
-    xnew(xnex.Screen, { width: 800, height: 600 }, function ({ node }) {
-        const renderer = PIXI.autoDetectRenderer({ view: node.canvas, width: node.width, height: node.height, background: '#000000', backgroundAlpha: 0.1 });
+    xnew(({ node }) => {
+        const width = 800;
+        const height = 600;
+        node.nestElement({ tag: 'canvas', width, height, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain;' });
 
-        const scene = new PIXI.Container();
-        xnew(Title, { scene, width: node.width, height: node.height });
+        const renderer = PIXI.autoDetectRenderer({ view: node.element, width, height, background: '#000000' });
+        const screen = { container: new PIXI.Container(), width, height };
+
+        xnew(Title, { screen });
 
         return {
-            animate: () => {
-                renderer.render(scene)
+            update: () => {
+                renderer.render(screen.container)
             },
         };
     });
 }
 
-function Input({ node }) {
+function Input({ }) {
     if (navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/)) {
-        const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xnex.AnalogStick, { size: 160 });
-        const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xnex.CircleButton);
-
-        stick.on('stickstart stickmove', (event, ex) => {
-            stick.emit('#move', { vector: ex.vector });
+        xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xnex.AnalogStick, { size: 160 }, ({ node }) => {
+            node.on('stickstart stickmove', (event, ex) => {
+                node.emit('#move', { vector: ex.vector });
+            });
         });
+
+        xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xnex.CircleButton);
+
     } else {
         xnew(window, function ({ node }) {
             const keys = {};
@@ -46,96 +52,98 @@ function Input({ node }) {
     }
 }
 
-function Title({ node, scene, width, height }) {
+function Title({ node, screen }) {
     
-    const text = new PIXI.Text('touch start');
-    text.x = width / 2;
-    text.y = height / 2;
+    const text = new PIXI.Text('touch start', new PIXI.TextStyle({ fill: '#FFFFFF' }));
+    text.x = screen.width / 2;
+    text.y = screen.height / 2;
     text.pivot.x = text.width / 2;
     text.pivot.y = text.height / 2;
 
-    scene.addChild(text);
+    screen.container.addChild(text);
 
     node.on('click', () => {
-        xnew(node.parent, Game, { scene, width, height })
+        xnew(node.parent, Game, { screen })
         node.finalize();
     })
     return {
         finalize: () => {
-            scene.removeChild(text);
+            screen.container.removeChild(text);
         }
     }
 }
 
-function Game({ node, scene, width, height }) {
-    const container = scene.addChild(new PIXI.Container());
+function Game({ node, screen }) {
+    const scene = screen.container.addChild(new PIXI.Container());
     
-    const player = xnew(Player, { container, width, height });
+    const objects = {};
+    const player = xnew(Player, { screen, scene });
+    const ememys = [];
 
     let delay = 100;
 
     const addEnemy = () => {
-        const enemy = xnew(Enemy, { container, width, height, player });
+        const enemy = xnew(Enemy, { screen, scene, player });
         node.setTimer(delay, addEnemy);
     }
     addEnemy();
 
     node.on('#gameover', () => {
-        xnew(node.parent, GameOver, { scene, width, height })
+        xnew(node.parent, GameOver, { screen })
         node.finalize();
     });
 
     return {
-        animate: () => {
+        update: () => {
         },
         finalize: () => {
-            scene.removeChild(object);
+            scene.removeChild(container);
         },
     };
 }
 
-function GameOver({ node, scene, width, height }) {
+function GameOver({ node, screen }) {
   
     const text = new PIXI.Text('game over');
-    text.x = width / 2;
-    text.y = height / 2;
+    text.x = screen.width / 2;
+    text.y = screen.height / 2;
     text.pivot.x = text.width / 2;
     text.pivot.y = text.height / 2;
 
-    scene.addChild(text);
+    screen.container.addChild(text);
 
     node.on('click', () => {
-        xnew(node.parent, Title, { scene, width, height })
+        xnew(node.parent, Title, { screen })
         node.finalize();
     });
     return {
         finalize: () => {
-            scene.removeChild(text);
+            screen.container.removeChild(text);
         }
     }
 }
 
-function Player({ node, container, width, height }) {
+function Player({ node, screen, scene }) {
 
-    const object = container.addChild(new PIXI.Container());
+    const object = scene.addChild(new PIXI.Container());
     const graphics = object.addChild(new PIXI.Graphics());
     graphics.beginFill(0xEA1E63);
     graphics.drawRect(-10, -10, 20, 20);
     graphics.endFill();
 
-    object.x = width / 2;
-    object.y = height / 2;
+    object.x = screen.width / 2;
+    object.y = screen.height / 2;
 
     let velocity = { x: 0, y: 0 };
     node.on('#move', ({ vector }) => {
         velocity = vector;
     });
     return {
-        animate: () => {
+        update: () => {
             object.x += velocity.x * 4;
             object.y += velocity.y * 4;
-            object.x = Math.max(0, Math.min(width, object.x));
-            object.y = Math.max(0, Math.min(height, object.y));
+            object.x = Math.max(0, Math.min(screen.width, object.x));
+            object.y = Math.max(0, Math.min(screen.height, object.y));
         },
         finalize: () => {
             container.removeChild(object);
@@ -147,29 +155,32 @@ function Player({ node, container, width, height }) {
     };
 }
 
-function Enemy({ node, container, width, height, player }) {
+function Enemy({ node, screen, scene, player }) {
+    const texture = PIXI.Texture.from('enemy.png');
+    const texture1 = new PIXI.Texture(texture, new PIXI.Rectangle(0, 0, 32, 32));
 
-    const object = container.addChild(new PIXI.Container());
-    const graphics = object.addChild(new PIXI.Graphics());
-    graphics.beginFill(0x221E63);
-    graphics.drawRect(-10, -10, 20, 20);
-    graphics.endFill();
+    const object = scene.addChild(new PIXI.Container());
 
-    object.x = Math.random() * width;
+    const sprite = new PIXI.Sprite();
+    sprite.texture = texture1;
+    sprite.anchor.set(0.5);
+    object.addChild(sprite);
+
+    object.x = Math.random() * screen.width;
     object.y = -10;
 
     function detectCollision() {
 
     }
     return {
-        animate: () => {
+        update: () => {
             object.y += 2;
-            if (object.y > height) {
+            if (object.y > screen.height) {
                 node.finalize();
             }
         },
         finalize: () => {
-            container.removeChild(object);
+            scene.removeChild(object);
         },
     };
 }
