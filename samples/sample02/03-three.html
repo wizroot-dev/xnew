@@ -22,13 +22,13 @@
             xnew(MyCube, { scene });
 
             return {
-                animate: () => {
+                update: () => {
                     renderer.render(scene, camera);
                 },
             };
         });
 
-        // create a cube and animate
+        // create a cube and update
         function MyCube({ node, scene }) {
             const geometry = new THREE.BoxGeometry(40, 40, 40);
             const material = new THREE.MeshNormalMaterial();
@@ -36,7 +36,7 @@
             scene.add(object);
 
             return {
-                animate: () => {
+                update: () => {
                     object.rotation.y += 0.01;
                 },
                 finalize: () => {

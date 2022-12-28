@@ -58,7 +58,7 @@ xnew(function ({ node }) {
     xnew(MyCube, { scene });
 
     return {
-        animate: () => {
+        update: () => {
             renderer.render(scene, camera);
         },
     };
@@ -66,7 +66,7 @@ xnew(function ({ node }) {
 ```
 
 ```
-// create a cube and animate
+// create a cube and update
 function MyCube({ node, scene }) {
     const geometry = new THREE.BoxGeometry(40, 40, 40);
     const material = new THREE.MeshNormalMaterial();
@@ -74,7 +74,7 @@ function MyCube({ node, scene }) {
     scene.add(object);
 
     return {
-        animate: () => {
+        update: () => {
             object.rotation.y += 0.01;
         },
         finalize: () => {
@@ -100,7 +100,7 @@ xnew(function({ node }) {
     xnew(MyBox, { scene });
 
     return {
-        animate: () => {
+        update: () => {
             renderer.render(scene)
         },
     };
@@ -108,7 +108,7 @@ xnew(function({ node }) {
 ```
 
 ```
-// create a box and animate
+// create a box and update
 function MyBox({ node, scene }) {
     const object = scene.addChild(new PIXI.Container());
     const graphics = object.addChild(new PIXI.Graphics());
@@ -117,7 +117,7 @@ function MyBox({ node, scene }) {
     graphics.endFill();
     
     return {
-        animate: () => {
+        update: () => {
             object.rotation += 0.01;
         },
         finalize: () => {
@@ -194,12 +194,12 @@ const node = xnew(function ({ node }) {
 
     return {
         promise: new Promise((resolve, reject) => {
-            // animate will not start until this promise is resolved.
+            // update will not start until this promise is resolved.
         }), 
         start: () => {
             // fires before animation starts.
         },
-        animate: (time) => {
+        update: (time) => {
             // executed repeatedly
         },
         stop: () => {

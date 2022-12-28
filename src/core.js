@@ -72,7 +72,7 @@ export class Node {
             this._.frameId = requestAnimationFrame(ticker.bind(this));
 
             function ticker() {
-                this._animate(this._.start ? (this._.start - new Date().getTime()) : 0);
+                this._update(this._.start ? (this._.start - new Date().getTime()) : 0);
                 this._.frameId = requestAnimationFrame(ticker.bind(this));
             }
         }
@@ -87,7 +87,7 @@ export class Node {
 
         if (typeof defines === 'object' && defines !== null) {
             Object.keys(defines).forEach((key) => {
-                if (['promise', 'start', 'animate', 'stop', 'finalize'].includes(key)) {
+                if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key)) {
                     this._.defines[key] = defines[key];
                 } else if (this._.defines[key] || !this[key]) {
                     if (typeof defines[key] === 'object' || typeof defines[key] === 'function') {
@@ -140,10 +140,10 @@ export class Node {
         }
     }
 
-    _animate(time) {
+    _update(time) {
         if (this._.phase === 'started') {
-            this._.children.forEach((node) => node._animate(time));
-            Node.wrap(this, this._.defines.animate, time);
+            this._.children.forEach((node) => node._update(time));
+            Node.wrap(this, this._.defines.update, time);
         }
     }
 

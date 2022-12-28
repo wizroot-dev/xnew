@@ -23,7 +23,7 @@
                 
                 xnew(MyBox, { scene });
                 return {
-                    animate: () => {
+                    update: () => {
                         renderer.render(scene)
                     },
                 };
@@ -58,7 +58,7 @@
             });
 
             return {
-                animate: () => {
+                update: () => {
                     object.rotation += 0.01 * direction;
                     if (move) {
                         object.x += move.x * 5;

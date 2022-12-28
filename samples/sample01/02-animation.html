@@ -23,7 +23,7 @@
                 start: () => {
                     node.element.textContent = 'start';
                 },
-                animate: (time) => {
+                update: (time) => {
                     node.element.style.transform = `rotate(${time / 10}deg)`;
                 },
                 stop: () => {
