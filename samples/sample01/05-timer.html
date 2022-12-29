@@ -16,12 +16,15 @@
             node.nestElement({ tag: 'p', style: 'padding: 8px;' });
             node.element.textContent = 'counter: 0';
 
-            const id = node.setTimer(1000, (status) => {
-                node.element.textContent = 'counter: ' + (status.counter + 1);
-                return true;
-            });
+            let counter = 0;
+            let id = node.setTimer(1000, func);
 
-            node.setTimer(5000, (status) => {
+            function func() {
+                node.element.textContent = 'counter: ' + (++counter);
+                id = node.setTimer(1000, func);
+            }
+
+            node.setTimer(5000, () => {
                 node.clearTimer(id);
             });
         });
