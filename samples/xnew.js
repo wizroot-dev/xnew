@@ -29,6 +29,14 @@
       return new Node(parent, element, ...content);
   }
 
+  //----------------------------------------------------------------------------------------------------
+  // function xnfind (keys)
+  //----------------------------------------------------------------------------------------------------
+
+  function xfind(tags) {
+
+  }
+
 
   //----------------------------------------------------------------------------------------------------
   // node
@@ -66,10 +74,7 @@
           if (content.length > 0) {
               let i = 0;
               if (typeof content[i] === 'function') {
-                  this.extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
-                  if (typeof content[i] === 'function') {
-                      this.extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
-                  }
+                  this._extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
               } else if (typeof content[i] === 'string' && this._.base !== this.element) {
                   this.element.innerHTML = content[0];
               }
@@ -130,12 +135,6 @@
                       console.error(`xnew define error: "${key}" already exists.`);
                   }
               });
-          }
-      }
-
-      extend(component, props) {
-          if (this._.phase === 'stopped' || this._.phase === 'before start') {
-              this._extend(component, props);
           }
       }
 
@@ -676,7 +675,8 @@
     CircleButton: CircleButton
   };
 
+  exports.xfind = xfind;
+  exports.xn = extensions;
   exports.xnew = xnew;
-  exports.xnex = extensions;
 
 }));

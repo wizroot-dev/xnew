@@ -5,11 +5,10 @@ function Main() {
     xnew(Input);
 
     xnew(({ node }) => {
-        const width = 800;
-        const height = 600;
-        node.nestElement({ tag: 'canvas', width, height, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain;' });
+        const width = 800, height = 600;
+        const canvas = xnew({ tag: 'canvas', width, height, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain;' });
 
-        const renderer = PIXI.autoDetectRenderer({ view: node.element, width, height, background: '#000000' });
+        const renderer = PIXI.autoDetectRenderer({ view: canvas.element, width, height, background: '#000000' });
         const screen = { container: new PIXI.Container(), width, height };
 
         xnew(Title, { screen });
@@ -24,13 +23,12 @@ function Main() {
 
 function Input({ }) {
     if (navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/)) {
-        xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xnex.AnalogStick, { size: 160 }, ({ node }) => {
-            node.on('stickstart stickmove', (event, ex) => {
-                node.emit('#move', { vector: ex.vector });
-            });
+        const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xn.AnalogStick, { size: 160 });
+        stick.on('stickstart stickmove', (event, ex) => {
+            stick.emit('#move', { vector: ex.vector });
         });
 
-        xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xnex.CircleButton);
+        xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xn.CircleButton);
 
     } else {
         xnew(window, function ({ node }) {

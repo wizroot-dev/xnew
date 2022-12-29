@@ -12,9 +12,11 @@
 
 <body style="height: 100vh; margin: 0; display: flex;">
     <script>
-        xnew(xnex.Screen, { width: 800, height: 450 }, function ({ node }) {
-            const renderer = new THREE.WebGLRenderer({ canvas: node.canvas });
-            const camera = new THREE.PerspectiveCamera(45, node.canvas.width / node.canvas.height);
+        xnew(() => {
+            const screen = xnew(xn.Screen, { width: 800, height: 450 });
+        
+            const renderer = new THREE.WebGLRenderer({ canvas: screen.canvas });
+            const camera = new THREE.PerspectiveCamera(45, screen.width / screen.height);
             camera.position.set(0, 0, +100);
 
             const scene = new THREE.Scene();
@@ -35,7 +37,7 @@
             const object = new THREE.Mesh(geometry, material);
             scene.add(object);
 
-            const draw = xnew(xnex.DrawEvent);
+            const draw = xnew(xn.DrawEvent);
             draw.on('drawmove', (event, ex) => {
                 if (event.buttons & 1 || !event.buttons) {
                     scene.rotation.x += ex.delta.y * 0.01;
