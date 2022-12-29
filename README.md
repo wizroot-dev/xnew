@@ -273,34 +273,29 @@ node.emit('myevent', data);
 ### Timer
 By using a timer, you can set a function to be executed after a specified time.
 ```
-const deley = 1000 // 1000 [ms]
+const deley = 1000; // 1000 [ms]
 
 // run only once
 xnew(({ node }) =>  {
-    const id = node.setTimer(delay, (status) => {
+    const id = node.setTimer(delay, () => {
         // ...
     });
 });
 
 // run repeatedly
 xnew(({ node }) =>  {
-    const id = node.setTimer(delay, (status) => {
+
+    let id = node.setTimer(delay, loop);
+
+    function loop() {
         // ...
-        return true;
-    });
+        id = node.setTimer(delay, loop);
+    }
 });
 
-// run 10 times
-xnew(({ node }) => {
-    const id = node.setTimer(delay, (status) => {
-        // ...
-        // status.counter = 0, 1, 2, ...
-        return (status.counter + 1 < 10);
-    });
-});
 ```
 - Timers can be canceled by calling `clearTimer(id)` using the id.
-- Timers are automatically canceled when the node's `finalize` is called.
+- Timers are automatically canceled when the node's `finalize` method is called.
 
 
 ### Parent node
