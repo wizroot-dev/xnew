@@ -67,7 +67,7 @@ export function DrawEvent({ node }) {
         const position = getPosition(event, id = getId(event));
         start = position;
         end = position;
-        node.emit('drawstart', event, { type: 'drawstart', id, start, end, });
+        node.emit('start', event, { type: 'start', id, start, end, });
         win.on('mousemove touchmove', move);
         win.on('mouseup touchend', up);
     };
@@ -75,11 +75,11 @@ export function DrawEvent({ node }) {
         const position = getPosition(event, id);
         const delta = { x: position.x - end.x, y: position.y - end.y };
         end = position;
-        node.emit('drawmove', event, { type: 'drawmove', id, start, end, delta, });
+        node.emit('move', event, { type: 'move', id, start, end, delta, });
     };
     function up(event) {
         const position = getPosition(event, id);
-        node.emit('drawend', event, { type: 'drawend', id, position, });
+        node.emit('end', event, { type: 'end', id, position, });
         [id, start, end] = [null, null, null];
         win.off();
     };
@@ -173,7 +173,7 @@ export function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8
 
     const draw = xnew(DrawEvent);
 
-    draw.on('drawstart drawmove', (event, ex) => {
+    draw.on('start move', (event, ex) => {
         const phase = ex.type.substring(4); // start or move
 
         event.preventDefault();
@@ -185,16 +185,16 @@ export function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8
         const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
         const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
         const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-        node.emit('stick' + phase, event, { type: 'stick' + phase, vector });
+        node.emit(phase, event, { type: phase, vector });
         [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
     });
 
-    draw.on('drawend', (event, ex) => {
+    draw.on('end', (event, ex) => {
         target.element.style.filter = '';
 
         const vector = { x: 0, y: 0 };
 
-        node.emit('stickend', event, { type: 'stickend', vector });
+        node.emit('end', event, { type: 'end', vector });
         [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
     });
 }
@@ -221,14 +221,14 @@ export function CircleButton({ node, size = 80, fill = '#FFF', fillOpacity = 0.8
         if (state === 0) {
             state = 1;
             target.element.style.filter = 'brightness(90%)';
-            node.emit('buttondown', event);
+            node.emit('down', event);
         }
     });
     win.on('touchend mouseup', (event) => {
         if (state === 1) {
             state = 0;
             target.element.style.filter = '';
-            node.emit('buttonup', event);
+            node.emit('up', event);
         }
     });
 }

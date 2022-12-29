@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------------------------------------
 // function xnew (parent, element, ...content)
 //
-// parent  : node: object (in many cases, this is omitted and set automatically)
+// parent  : node (in many cases, this is omitted and set automatically)
 // element : two pattern
 //           1. html element or window: object (e.g. document.querySelector('#hoge'))
 //           2. attributes to create a html element: object (e.g. { tag: 'div', style: '' })
@@ -24,12 +24,21 @@ export function xnew(...args) {
 }
 
 //----------------------------------------------------------------------------------------------------
-// function xnfind (keys)
+// function xfind (key)
+//
+// key  : string
+//         ex 'hoge'
+//         ex 'hoge fuga'
 //----------------------------------------------------------------------------------------------------
 
-export function xfind(tags) {
-    let counter = 0;
-
+export function xfind(key) {
+    const set = new Set();
+    key.split(' ').forEach((k) => {
+        if (k !== '' && Node.map.has(k)) {
+            Node.map.get(k).forEach((node) => set.add(node));
+        }
+    });
+    return [...set];
 }
 
 
@@ -47,9 +56,9 @@ export class Node {
         
         // parent Node class
         this.parent = parent instanceof Node ? parent : Node.current.node;
-        this.parent?.children.add(this);
+        this.parent?._.children.add(this);
 
-        this.children = new Set();
+        this._.children = new Set();
 
         if (element instanceof Element || element === window) {
             this._.base = element;
@@ -97,13 +106,13 @@ export class Node {
             Object.keys(defines).forEach((key) => {
                 if (key === 'promise'){
                     if (defines[key] instanceof Promise) {
-                        this._.defines[key] = this._.defines[key] ? Promise.all([this._.defines[key], defines[key]]) : defines[key];
+                        this._.defines[key] = defines[key];
                     } else {
                         console.error(`xnew define error: "${key}" is improper format.`);
                     }
                 } else if (['start', 'update', 'stop', 'finalize'].includes(key)) {
                     if (typeof defines[key] === 'function') {
-                        this._.defines[key] = this._.defines[key] ? (...args) => { this._.defines[key](...args); defines[key](...args); } : defines[key];
+                        this._.defines[key] = defines[key];
                     } else {
                         console.error(`xnew define error: "${key}" is improper format.`);
                     }
@@ -154,7 +163,7 @@ export class Node {
 
     _update(time) {
         if (this._.phase === 'started') {
-            this.children.forEach((node) => node._update(time));
+            this._.children.forEach((node) => node._update(time));
             Node.wrap(this, this._.defines.update, time);
         }
     }
@@ -186,7 +195,7 @@ export class Node {
     _finalize() {
         if (this._.phase === 'before finalize') {
 
-            [...this.children].forEach((node) => node.finalize());
+            [...this._.children].forEach((node) => node.finalize());
             
             Node.wrap(this, this._.defines.finalize);
 
@@ -199,7 +208,7 @@ export class Node {
             
             // callback
             this._.timerIds?.forEach((id) => {
-                this.clearCallback(id);
+                this.clearTimer(id);
             });
 
             if (this.element !== null && this.element !== this._.base) {
@@ -209,8 +218,9 @@ export class Node {
                     this._.base.removeChild(target);
                 }
             }
+            this.key = '';
 
-            this.parent?.children.delete(this);
+            this.parent?._.children.delete(this);
 
             this._.phase = 'finalized';
         }
@@ -228,21 +238,18 @@ export class Node {
         return this._.phase === 'finalized';
     }
 
-    set tags(tags) {
-        this._.tags = tags;
-    }
-    get tags() {
-        return this._.tags;
-    }
-
     //----------------------------------------------------------------------------------------------------
-    // utilities
-    //----------------------------------------------------------------------------------------------------
+    // element
+    //----------------------------------------------------------------------------------------------------        
   
     nestElement(attributes, inner) {
         this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
     }
 
+    //----------------------------------------------------------------------------------------------------
+    // timer
+    //----------------------------------------------------------------------------------------------------        
+  
     setTimer(delay, callback, ...args) {
         if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
             return this._setTimer(delay, callback, ...args);
@@ -272,6 +279,39 @@ export class Node {
             const data = this._.timerIds.get(id);
             clearTimeout(data.id);
             this._.timerIds.delete(id);
+        }
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // key
+    //----------------------------------------------------------------------------------------------------
+   
+    set key(key) {
+        this._key(key);
+    }
+    get key() {
+        return this._.key ?? '';
+    }
+
+    _key(key) {
+        if (typeof key === 'string') {
+            (this._.key ?? '').split(' ').forEach((k) => {
+                if (k !== '') {
+                    Node.map.get(k).delete(this)
+                }
+            });
+
+            this._.key = '';
+
+            const tmp = new Set();
+            key.split(' ').forEach((k) => {
+                if (k !== '' && !tmp.has(k)) {
+                    tmp.add(k);
+                    if (!Node.map.has(k)) Node.map.set(k, new Set);
+                    Node.map.get(k).add(this);
+                    this._.key += k + ' ';    
+                }
+            });
         }
     }
 
@@ -372,7 +412,7 @@ export class Node {
     }
 
     _downEmit(type, ...args) {
-        this.children.forEach((node) => {
+        this._.children.forEach((node) => {
             node._downEmit(type, ...args);
             node._selfEmit(type, ...args);
         });
@@ -398,6 +438,8 @@ export class Node {
         }
         return response;
     }
+
+    static map = new Map();
 }
 
 function createElementWithAttributes(attributes, innerHTML = null) {
