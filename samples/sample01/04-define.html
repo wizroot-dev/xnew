@@ -12,7 +12,7 @@
 
 <body>
     <script>
-        const target = xnew(function ({ node }) {
+        const target = xnew(({ node }) => {
             node.nestElement({ tag: 'p', style: 'padding: 8px;' });
             let counter = 0;
             return {
@@ -26,7 +26,7 @@
             };
         });
 
-        xnew(function ({ node }) {
+        xnew(({ node }) => {
             node.nestElement({ tag: 'button', style: 'padding: 8px;' }, 'click me');
 
             node.on('click', () => {

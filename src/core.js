@@ -24,21 +24,32 @@ export function xnew(...args) {
 }
 
 //----------------------------------------------------------------------------------------------------
-// x node
+// function xnfind (keys)
+//----------------------------------------------------------------------------------------------------
+
+export function xfind(tags) {
+    let counter = 0;
+
+}
+
+
+//----------------------------------------------------------------------------------------------------
+// node
 //----------------------------------------------------------------------------------------------------
 
 export class Node {
     constructor(parent, element, ...content) {
         // internal data
         this._ = {};
-        this._.children = new Set();  // child nodes
         this._.phase = 'stopped';     // [stopped ->before start ->started ->before stop ->...] ->before finalize ->finalized
         this._.defines = {};
         this._.listeners = new Map();
         
         // parent Node class
         this.parent = parent instanceof Node ? parent : Node.current.node;
-        this.parent?._.children.add(this);
+        this.parent?.children.add(this);
+
+        this.children = new Set();
 
         if (element instanceof Element || element === window) {
             this._.base = element;
@@ -58,10 +69,7 @@ export class Node {
         if (content.length > 0) {
             let i = 0;
             if (typeof content[i] === 'function') {
-                this.extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
-                if (typeof content[i] === 'function') {
-                    this.extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
-                }
+                this._extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
             } else if (typeof content[i] === 'string' && this._.base !== this.element) {
                 this.element.innerHTML = content[0];
             }
@@ -83,12 +91,22 @@ export class Node {
     //----------------------------------------------------------------------------------------------------
     
     _extend(component, props) {
-        const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }), Object.assign({}, this._.defines ?? {}));
+        const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }));
 
         if (typeof defines === 'object' && defines !== null) {
             Object.keys(defines).forEach((key) => {
-                if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key)) {
-                    this._.defines[key] = defines[key];
+                if (key === 'promise'){
+                    if (defines[key] instanceof Promise) {
+                        this._.defines[key] = this._.defines[key] ? Promise.all([this._.defines[key], defines[key]]) : defines[key];
+                    } else {
+                        console.error(`xnew define error: "${key}" is improper format.`);
+                    }
+                } else if (['start', 'update', 'stop', 'finalize'].includes(key)) {
+                    if (typeof defines[key] === 'function') {
+                        this._.defines[key] = this._.defines[key] ? (...args) => { this._.defines[key](...args); defines[key](...args); } : defines[key];
+                    } else {
+                        console.error(`xnew define error: "${key}" is improper format.`);
+                    }
                 } else if (this._.defines[key] || !this[key]) {
                     if (typeof defines[key] === 'object' || typeof defines[key] === 'function') {
                         this._.defines[key] = defines[key];
@@ -115,12 +133,6 @@ export class Node {
         }
     }
 
-    extend(component, props) {
-        if (this._.phase === 'before stop' || this._.phase === 'stopped' || this._.phase === 'before start') {
-            this._extend(component, props);
-        }
-    }
-
     get promise() {
         return this._.defines.promise ?? Promise.resolve();
     }
@@ -142,7 +154,7 @@ export class Node {
 
     _update(time) {
         if (this._.phase === 'started') {
-            this._.children.forEach((node) => node._update(time));
+            this.children.forEach((node) => node._update(time));
             Node.wrap(this, this._.defines.update, time);
         }
     }
@@ -174,7 +186,8 @@ export class Node {
     _finalize() {
         if (this._.phase === 'before finalize') {
 
-            this._.children.forEach((node) => node.finalize());
+            [...this.children].forEach((node) => node.finalize());
+            
             Node.wrap(this, this._.defines.finalize);
 
             this.off();
@@ -196,6 +209,9 @@ export class Node {
                     this._.base.removeChild(target);
                 }
             }
+
+            this.parent?.children.delete(this);
+
             this._.phase = 'finalized';
         }
     }
@@ -210,6 +226,13 @@ export class Node {
 
     isFinalized() {
         return this._.phase === 'finalized';
+    }
+
+    set tags(tags) {
+        this._.tags = tags;
+    }
+    get tags() {
+        return this._.tags;
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -349,7 +372,7 @@ export class Node {
     }
 
     _downEmit(type, ...args) {
-        this._.children.forEach((node) => {
+        this.children.forEach((node) => {
             node._downEmit(type, ...args);
             node._selfEmit(type, ...args);
         });
@@ -389,7 +412,7 @@ function createElementWithAttributes(attributes, innerHTML = null) {
     
     Object.keys(attributes).forEach((key) => {
         const value = attributes[key];
-        if (key === 'style'){
+        if (key === 'style') {
             if (typeof value === 'string') {
                 element.style = value;
             } else if (typeof value === 'object'){

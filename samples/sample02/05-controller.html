@@ -13,13 +13,15 @@
 <body style="height: 100vh; margin: 0;">
     
     <script>
-        xnew(function() {
+        xnew(() => {
             xnew(Input);
 
-            xnew(xnex.Screen, { width: 800, height: 450 }, function ({ node }) {
-                const renderer = PIXI.autoDetectRenderer({ view: node.canvas, width: node.canvas.width, height: node.canvas.height });
+            xnew(() => {
+                const screen = xnew(xn.Screen, { width: 800, height: 450 });
+
+                const renderer = PIXI.autoDetectRenderer({ view: screen.canvas, width: screen.width, height: screen.height });
                 const scene = new PIXI.Container();
-                [scene.x, scene.y] = [node.canvas.width / 2, node.canvas.height / 2];
+                [scene.x, scene.y] = [screen.width / 2, screen.height / 2];
                 
                 xnew(MyBox, { scene });
                 return {
@@ -31,11 +33,11 @@
         });
 
         function Input() {
-            const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xnex.AnalogStick, { size: 160 });
+            const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xn.AnalogStick, { size: 160 });
             stick.on('stickstart stickmove stickend', (event, ex) => {
                 stick.emit('#move', ex);
             })
-            const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xnex.CircleButton);
+            const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xn.CircleButton);
             button.on('buttondown', (event, ex) => {
                 button.emit('#action');
             })

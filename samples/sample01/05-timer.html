@@ -12,7 +12,7 @@
 
 <body>
     <script>
-        xnew(function ({ node }) {
+        xnew(({ node }) => {
             node.nestElement({ tag: 'p', style: 'padding: 8px;' });
             node.element.textContent = 'counter: 0';
 

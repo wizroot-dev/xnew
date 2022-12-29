@@ -1,14 +1,14 @@
+import { xnew } from "../../src/core";
 
 
 function Main() {
     xnew(Input);
 
     xnew(({ node }) => {
-        const width = 800;
-        const height = 600;
-        node.nestElement({ tag: 'canvas', width, height, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain;' });
+        const width = 800, height = 600;
+        const canvas = xnew({ tag: 'canvas', width, height, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain;' });
 
-        const renderer = PIXI.autoDetectRenderer({ view: node.element, width, height, background: '#000000' });
+        const renderer = PIXI.autoDetectRenderer({ view: canvas.element, width, height, background: '#000000' });
         const screen = { container: new PIXI.Container(), width, height };
 
         xnew(Title, { screen });
@@ -23,13 +23,12 @@ function Main() {
 
 function Input({ }) {
     if (navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/)) {
-        xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xnex.AnalogStick, { size: 160 }, ({ node }) => {
-            node.on('stickstart stickmove', (event, ex) => {
-                node.emit('#move', { vector: ex.vector });
-            });
+        const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xn.AnalogStick, { size: 160 });
+        stick.on('stickstart stickmove', (event, ex) => {
+            stick.emit('#move', { vector: ex.vector });
         });
 
-        xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xnex.CircleButton);
+        xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xn.CircleButton);
 
     } else {
         xnew(window, function ({ node }) {
@@ -76,17 +75,9 @@ function Title({ node, screen }) {
 function Game({ node, screen }) {
     const scene = screen.container.addChild(new PIXI.Container());
     
-    const objects = {};
+    const enemys = xnew(Enemys, { screen, scene });
     const player = xnew(Player, { screen, scene });
-    const ememys = [];
 
-    let delay = 100;
-
-    const addEnemy = () => {
-        const enemy = xnew(Enemy, { screen, scene, player });
-        node.setTimer(delay, addEnemy);
-    }
-    addEnemy();
 
     node.on('#gameover', () => {
         xnew(node.parent, GameOver, { screen })
@@ -144,6 +135,7 @@ function Player({ node, screen, scene }) {
             object.y += velocity.y * 4;
             object.x = Math.max(0, Math.min(screen.width, object.x));
             object.y = Math.max(0, Math.min(screen.height, object.y));
+            
         },
         finalize: () => {
             container.removeChild(object);
@@ -155,7 +147,17 @@ function Player({ node, screen, scene }) {
     };
 }
 
-function Enemy({ node, screen, scene, player }) {
+function Enemys({ node, screen, scene }) {
+    let delay = 100;
+    const addEnemy = () => {
+        xnew(Enemy, { screen, scene });
+        node.setTimer(delay, addEnemy);
+    }
+    addEnemy();
+
+}
+
+function Enemy({ node, screen, scene }) {
     const texture = PIXI.Texture.from('enemy.png');
     const texture1 = new PIXI.Texture(texture, new PIXI.Rectangle(0, 0, 32, 32));
 

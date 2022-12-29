@@ -44,8 +44,8 @@ Works well with rendering libraries like three.js and pixi.js. The following sam
 
 ```
 // create canvas and setup three.js
-xnew(function ({ node }) {
-    const [width, height] = [800, 450];
+xnew(() => {
+    const width = 800, height = 450;
     const canvas = xnew({ tag: 'canvas', width, height });
 
     const renderer = new THREE.WebGLRenderer({ canvas: canvas.element });
@@ -66,8 +66,8 @@ xnew(function ({ node }) {
 ```
 
 ```
-// create a cube and update
-function MyCube({ node, scene }) {
+// create a cube and animate
+function MyCube({ scene }) {
     const geometry = new THREE.BoxGeometry(40, 40, 40);
     const material = new THREE.MeshNormalMaterial();
     const object = new THREE.Mesh(geometry, material);
@@ -88,8 +88,8 @@ function MyCube({ node, scene }) {
 ![pixi](./images/pixi.gif)
 ```
 // create canvas and setup pixi.js
-xnew(function({ node }) {
-    const [width, height] = [800, 450];
+xnew(() => {
+    const width = 800, height = 450;
     const canvas = xnew({ tag: 'canvas', width, height });
 
     const renderer = PIXI.autoDetectRenderer({ view: canvas.element, width, height });
@@ -108,8 +108,8 @@ xnew(function({ node }) {
 ```
 
 ```
-// create a box and update
-function MyBox({ node, scene }) {
+// create a box and animate
+function MyBox({ scene }) {
     const object = scene.addChild(new PIXI.Container());
     const graphics = object.addChild(new PIXI.Graphics());
     graphics.beginFill(0xEA1E63);
@@ -136,7 +136,7 @@ function MyBox({ node, scene }) {
 ```
 function xnew (parent, element, ...content)
 
-parent : node: object (in many cases, this is omitted and set automatically)
+parent : node (in many cases, this is omitted and set automatically)
 element: two patterns
           1. html element or window: object (e.g. document.querySelector('#hoge'))
           2. attributes to create a html element: object (e.g. { tag: 'div', style: '' })
@@ -159,21 +159,21 @@ If you call `xnew` like nesting, created nodes have a parent-child relationship.
 <div id="hoge"></div>
 
 <script>
-    const node1 = xnew(document.querySelector('#hoge'), function ({ node }) {
+    const node1 = xnew(document.querySelector('#hoge'), ({ node }) => {
         // node.parent: null
         // node.element: hoge
 
-        const node2 = xnew(function ({ node }) {
+        const node2 = xnew(({ node }) => {
             // node.parent: node1
             // node.element: hoge (equal to parent's element)
         });
 
-        const node3 = xnew({ tag: 'div', id: 'fuga' }, function ({ node }) {
+        const node3 = xnew({ tag: 'div', id: 'fuga' }, ({ node }) => {
             // node.parent: node1
             // node.element: fuga (as a child element of hoge)
         });
 
-        const node4 = xnew(function ({ node }) {
+        const node4 = xnew(({ node }) => {
             // create new element and replace node.element
             node.nestElement({ tag: 'div', id: 'piyo' };
 
@@ -184,13 +184,12 @@ If you call `xnew` like nesting, created nodes have a parent-child relationship.
 </script>
 </body>
 ```
-- If you omit `element`, new node's element is set automatically (e.g. node2, node4). 
 
 ### System functions 
-A node has some system functions for basic control. You can define the detail in the response of the component function.
+nodes has some system functions for basic control. You can define the detail in the response of the component function.
 
 ```
-const node = xnew(function ({ node }) {
+const node = xnew(({ node }) => {
 
     return {
         promise: new Promise((resolve, reject) => {
@@ -214,7 +213,7 @@ const node = xnew(function ({ node }) {
 
 node.start();    // start animation
 node.stop();     // stop animation
-node.finalize(); // created element and child nodes will be deleted 
+node.finalize(); // current node and the child nodes will be deleted 
 
 node.isStarted();   // return boolean 
 node.isStopped();   // ...
@@ -227,7 +226,7 @@ node.isFinalized(); // ...
 ### Original functions
 You can define original functions unless the function is already defined.
 ```
-const node = xnew(function ({ node }) {
+const node = xnew(({ node }) =>  {
     let counter = 0;
 
     return {
@@ -252,7 +251,7 @@ const x = node.counter; // getter
 ### Event listener
 You can set the event listener using `on`, and fire original event using `emit`.
 ```
-const node = xnew(function ({ node }) {
+const node = xnew(({ node }) => {
     node.on('click', (event) => {
         // fires when the element is clicked.
     });
@@ -277,14 +276,14 @@ By using a timer, you can set a function to be executed after a specified time.
 const deley = 1000 // 1000 [ms]
 
 // run only once
-xnew(function ({ node }) {
+xnew(({ node }) =>  {
     const id = node.setTimer(delay, (status) => {
         // ...
     });
 });
 
 // run repeatedly
-xnew(function ({ node }) {
+xnew(({ node }) =>  {
     const id = node.setTimer(delay, (status) => {
         // ...
         return true;
@@ -292,7 +291,7 @@ xnew(function ({ node }) {
 });
 
 // run 10 times
-xnew(function ({ node }) {
+xnew(({ node }) => {
     const id = node.setTimer(delay, (status) => {
         // ...
         // status.counter = 0, 1, 2, ...
@@ -308,7 +307,7 @@ xnew(function ({ node }) {
 If you want to intentionally change the parent node, set first argument of `xnew`. For example, it is set in cases such as scene changes, where you want to create a sibling node in a node.
 
 ```
-const root = xnew(function ({ node }) {
+const root = xnew(({ node }) =>  {
     xnew(Scene1);
 });
 
