@@ -39,7 +39,7 @@
                     object.rotation += 0.01;
                 },
                 finalize: () => {
-                    scene.removeChild(object);
+                    object.destroy();
                 },
             };
         }

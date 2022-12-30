@@ -198,7 +198,7 @@ const node = xnew(({ node }) => {
         start: () => {
             // fires before animation starts.
         },
-        update: (time) => {
+        update: () => {
             // executed repeatedly
         },
         stop: () => {
@@ -284,13 +284,9 @@ xnew(({ node }) =>  {
 
 // run repeatedly
 xnew(({ node }) =>  {
-
-    let id = node.setTimer(delay, loop);
-
-    function loop() {
+    const id = node.setTimer(delay, () => {
         // ...
-        id = node.setTimer(delay, loop);
-    }
+    }, true);
 });
 
 ```

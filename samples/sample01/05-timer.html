@@ -17,12 +17,9 @@
             node.element.textContent = 'counter: 0';
 
             let counter = 0;
-            let id = node.setTimer(1000, func);
-
-            function func() {
+            const id = node.setTimer(1000, () => {
                 node.element.textContent = 'counter: ' + (++counter);
-                id = node.setTimer(1000, func);
-            }
+            }, true);
 
             node.setTimer(5000, () => {
                 node.clearTimer(id);

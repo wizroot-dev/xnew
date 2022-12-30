@@ -10,7 +10,7 @@ export function Screen({ node, width, height, objectFit = 'contain' }) {
     node.nestElement({ style: 'position: relative; width: 100%; height: 100%;' });
     const outer = node.element.parentElement;
 
-    const canvas = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
+    const canvas = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom; image-rendering: pixelated;' });
 
     if (['fill', 'contain', 'cover'].includes(objectFit)) {
         const win = xnew(window);
@@ -134,15 +134,19 @@ export function Audio({ node, url }) {
             .then((response) => _AudioContext().decodeAudioData(response))
             .then((response) => buffer = response),
         play: () => {
-            node.pause();
-            source = _AudioContext().createBufferSource();
-            source.buffer = buffer;
-            source.connect(gain).connect(_AudioContext().destination);
-            source.start(0);
+            if (buffer) {
+                node.pause();
+                source = _AudioContext().createBufferSource();
+                source.buffer = buffer;
+                source.connect(gain).connect(_AudioContext().destination);
+                source.start(0);
+            }
         },
         pause: () => {
-            source?.stop();
-            source = null;
+            if (source) {
+                source.stop();
+                source = null;
+            }
         },
         volume: {
             set: (value) => gain.gain.value = value,

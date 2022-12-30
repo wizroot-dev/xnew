@@ -56,7 +56,11 @@
       constructor(parent, element, ...content) {
           // internal data
           this._ = {};
-          this._.phase = 'stopped';     // [stopped ->before start ->started ->before stop ->...] ->before finalize ->finalized
+
+          this._.phase = 'stop';     // [stop ->start ->...] stop ->finalize
+          this._.tostart = false;
+          this._.resolve = false;
+
           this._.defines = {};
           this._.listeners = new Map();
           
@@ -95,7 +99,7 @@
               this._.frameId = requestAnimationFrame(ticker.bind(this));
 
               function ticker() {
-                  this._update(this._.start ? (this._.start - new Date().getTime()) : 0);
+                  this._update();
                   this._.frameId = requestAnimationFrame(ticker.bind(this));
               }
           }
@@ -146,6 +150,8 @@
                   }
               });
           }
+
+          this.promise.then((response) => { this._.resolve = true; return response; });
       }
 
       get promise() {
@@ -153,54 +159,44 @@
       }
 
       start() {
-          if (this._.phase === 'before stop' || this._.phase === 'stopped') {
-              this._.phase = 'before start';
-              setTimeout(() => this.promise.then(() => this._start()), 0);
-          }
-      }
-
-      _start() {
-          if (this._.phase === 'before start') {
-              this._.start = new Date().getTime();
-              Node.wrap(this, this._.defines.start);
-              this._.phase = 'started';
-          }
-      }
-
-      _update(time) {
-          if (this._.phase === 'started') {
-              this._.children.forEach((node) => node._update(time));
-              Node.wrap(this, this._.defines.update, time);
-          }
+          this._.tostart = true;
       }
 
       stop() {
-          if (this._.phase === 'before start') {
-              this._.phase = 'stopped';
-          } else if (this._.phase === 'started') {
-              this._.phase = 'before stop';
-              this._stop();
+          this._.tostart = false;
+      }
+
+      _start() {
+          if (this._.phase === 'stop' && (this.parent === null || this.parent._.phase === 'start') && this._.resolve === true && this._.tostart === true) {
+              this._.phase = 'start';
+              this._.children.forEach((node) => node._start());
+              Node.wrap(this, this._.defines.start);
           }
       }
 
       _stop() {
-          if (this._.phase === 'before stop') {
+          if (this._.phase === 'start') {
+              this._.phase = 'stop';
+              this._.children.forEach((node) => node._stop());
               Node.wrap(this, this._.defines.stop);
-              this._.phase = 'stopped';
+          }
+      }
+
+      _update() {
+          this._.tostart === true ? this._start() : this._stop();
+
+          this._.children.forEach((node) => node._update());
+      
+          if (this._.phase === 'start') {
+              Node.wrap(this, this._.defines.update);
           }
       }
 
       finalize() {
-          this.stop();
-          if (this._.phase !== 'before finalize' && this._.phase !== 'finalized') {
-              this._.phase = 'before finalize';
-              this._finalize();
-          }
-      }
+          if (this._.phase !== 'finalize') {
+              this._stop();
 
-      _finalize() {
-          if (this._.phase === 'before finalize') {
-
+              this._.phase = 'finalize';
               [...this._.children].forEach((node) => node.finalize());
               
               Node.wrap(this, this._.defines.finalize);
@@ -212,11 +208,12 @@
                   cancelAnimationFrame(this._.frameId);
               }
               
-              // callback
+              // timer
               this._.timerIds?.forEach((id) => {
                   this.clearTimer(id);
               });
 
+              // element
               if (this.element !== null && this.element !== this._.base) {
                   let target = this.element;
                   while (target.parentElement !== null && target.parentElement !== this._.base) { target = target.parentElement; }
@@ -224,24 +221,25 @@
                       this._.base.removeChild(target);
                   }
               }
+              
+              // key
               this.key = '';
 
+              // relation
               this.parent?._.children.delete(this);
-
-              this._.phase = 'finalized';
           }
       }
 
       isStarted() {
-          return this._.phase === 'started';
+          return this._.phase === 'start';
       }
 
       isStopped() {
-          return this._.phase === 'stopped';
+          return this._.phase === 'stop';
       }
 
       isFinalized() {
-          return this._.phase === 'finalized';
+          return this._.phase === 'finalize';
       }
 
       //----------------------------------------------------------------------------------------------------
@@ -256,34 +254,29 @@
       // timer
       //----------------------------------------------------------------------------------------------------        
     
-      setTimer(delay, callback, ...args) {
+      setTimer(delay, callback, repeat = false) {
           if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
-              return this._setTimer(delay, callback, ...args);
+              const data = { id: Node.timerId++, timeout: null };
+
+              const func = () => {
+                  Node.wrap(this, callback);
+                  if (repeat) {
+                      data.timeout = setTimeout(func, delay);
+                  } else {
+                      this._.timerIds.delete(data.id);
+                  }
+              };
+              data.timeout = setTimeout(func, delay);
+
+              this._.timerIds = this._.timerIds ?? new Map;
+              this._.timerIds.set(data.id, data);
+              return data.id;
           }
-      }
-
-      _setTimer(delay, callback, ...args) {
-          const data = { id: null, counter: 0 };
-
-          const func = () => {
-              const response = Node.wrap(this, callback, { delay, counter: data.counter }, ...args);
-              data.counter++;
-              if (response === true) {
-                  data.id = setTimeout(func, delay);
-              }
-          };
-          data.id = setTimeout(func, delay);
-
-          const id = Node.timerId++;
-          this._.timerIds = this._.timerIds ?? new Map;
-          this._.timerIds.set(id, data);
-          return id;
       }
 
       clearTimer(id) {
           if (this._.timerIds?.has(id)) {
-              const data = this._.timerIds.get(id);
-              clearTimeout(data.id);
+              clearTimeout(this._.timerIds.get(id).timeout);
               this._.timerIds.delete(id);
           }
       }
@@ -293,32 +286,29 @@
       //----------------------------------------------------------------------------------------------------
      
       set key(key) {
-          this._key(key);
+          if (typeof key !== 'string') return;
+
+          (this._.key ?? '').split(' ').forEach((k) => {
+              if (k !== '') {
+                  Node.map.get(k).delete(this);
+              }
+          });
+
+          this._.key = '';
+
+          const tmp = new Set();
+          key.split(' ').forEach((k) => {
+              if (k !== '' && !tmp.has(k)) {
+                  tmp.add(k);
+                  if (!Node.map.has(k)) Node.map.set(k, new Set);
+                  Node.map.get(k).add(this);
+                  this._.key += k + ' ';    
+              }
+          });
       }
+
       get key() {
           return this._.key ?? '';
-      }
-
-      _key(key) {
-          if (typeof key === 'string') {
-              (this._.key ?? '').split(' ').forEach((k) => {
-                  if (k !== '') {
-                      Node.map.get(k).delete(this);
-                  }
-              });
-
-              this._.key = '';
-
-              const tmp = new Set();
-              key.split(' ').forEach((k) => {
-                  if (k !== '' && !tmp.has(k)) {
-                      tmp.add(k);
-                      if (!Node.map.has(k)) Node.map.set(k, new Set);
-                      Node.map.get(k).add(this);
-                      this._.key += k + ' ';    
-                  }
-              });
-          }
       }
 
       //----------------------------------------------------------------------------------------------------
@@ -490,7 +480,7 @@
       node.nestElement({ style: 'position: relative; width: 100%; height: 100%;' });
       const outer = node.element.parentElement;
 
-      const canvas = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
+      const canvas = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom; image-rendering: pixelated;' });
 
       if (['fill', 'contain', 'cover'].includes(objectFit)) {
           const win = xnew(window);
@@ -610,15 +600,19 @@
               .then((response) => _AudioContext().decodeAudioData(response))
               .then((response) => buffer = response),
           play: () => {
-              node.pause();
-              source = _AudioContext().createBufferSource();
-              source.buffer = buffer;
-              source.connect(gain).connect(_AudioContext().destination);
-              source.start(0);
+              if (buffer) {
+                  node.pause();
+                  source = _AudioContext().createBufferSource();
+                  source.buffer = buffer;
+                  source.connect(gain).connect(_AudioContext().destination);
+                  source.start(0);
+              }
           },
           pause: () => {
-              source?.stop();
-              source = null;
+              if (source) {
+                  source.stop();
+                  source = null;
+              }
           },
           volume: {
               set: (value) => gain.gain.value = value,

@@ -1,6 +1,6 @@
 function main() {
     xnew(() => {
-        const screen = xnew(xn.Screen, { width: 800, height: 600 });
+        const screen = xnew(xn.Screen, { width: 400, height: 300 });
 
         const renderer = PIXI.autoDetectRenderer({ view: screen.canvas, width: screen.width, height: screen.height, background: '#000000' });
         const stage = new PIXI.Container();
@@ -26,10 +26,10 @@ function Input({ node }) {
         const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xn.CircleButton);
         button.on('down', () => {
             node.emit('#shoton');
-        })
+        });
         button.on('up', () => {
             node.emit('#shotoff');
-        })
+        });
     } else {
         const keyState = {};
         node.on('keydown', (event) => {
@@ -93,7 +93,7 @@ function GameMain({ node, screen, stage }) {
         update: () => {
         },
         finalize: () => {
-            scene.removeChild(container);
+            stage.removeChild(scene);
         },
     };
 }
@@ -167,7 +167,7 @@ function Player({ node, screen, scene }) {
             }
         },
         finalize: () => {
-            container.removeChild(object);
+            scene.removeChild(object);
         },
         object: { get: () => object },
     };
@@ -225,9 +225,6 @@ function Enemy({ node, screen, scene }) {
     object.x = x
     object.y = -10;
 
-    function detectCollision() {
-
-    }
     return {
         update: (time) => {
             object.y += 2;
