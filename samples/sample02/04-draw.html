@@ -38,7 +38,7 @@
             scene.add(object);
 
             const draw = xnew(xn.DrawEvent);
-            draw.on('drawmove', (event, ex) => {
+            draw.on('move', (event, ex) => {
                 if (event.buttons & 1 || !event.buttons) {
                     scene.rotation.x += ex.delta.y * 0.01;
                     scene.rotation.y += ex.delta.x * 0.01;
