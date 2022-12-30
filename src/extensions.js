@@ -4,13 +4,17 @@ import { xnew } from './core';
 // screen
 //----------------------------------------------------------------------------------------------------
 
-export function Screen({ node, width, height, objectFit = 'contain' }) {
+export function Screen({ node, width, height, objectFit = 'contain', pixelated = true }) {
     node.nestElement({ style: 'position: relative; width: 100%; height: 100%; overflow: hidden;' });
     node.nestElement({ style: 'position: absolute; inset: 0; margin: auto;' });
     node.nestElement({ style: 'position: relative; width: 100%; height: 100%;' });
     const outer = node.element.parentElement;
 
     const canvas = xnew({ tag: 'canvas', width, height, style: 'position: absolute; width: 100%; height: 100%; vertical-align: bottom;' });
+    
+    if (pixelated === true) {
+        canvas.element.style.imageRendering = 'pixelated';
+    }
 
     if (['fill', 'contain', 'cover'].includes(objectFit)) {
         const win = xnew(window);
@@ -134,15 +138,19 @@ export function Audio({ node, url }) {
             .then((response) => _AudioContext().decodeAudioData(response))
             .then((response) => buffer = response),
         play: () => {
-            node.pause();
-            source = _AudioContext().createBufferSource();
-            source.buffer = buffer;
-            source.connect(gain).connect(_AudioContext().destination);
-            source.start(0);
+            if (buffer) {
+                node.pause();
+                source = _AudioContext().createBufferSource();
+                source.buffer = buffer;
+                source.connect(gain).connect(_AudioContext().destination);
+                source.start(0);
+            }
         },
         pause: () => {
-            source?.stop();
-            source = null;
+            if (source) {
+                source.stop();
+                source = null;
+            }
         },
         volume: {
             set: (value) => gain.gain.value = value,
@@ -174,8 +182,6 @@ export function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8
     const draw = xnew(DrawEvent);
 
     draw.on('start move', (event, ex) => {
-        const phase = ex.type.substring(4); // start or move
-
         event.preventDefault();
         event.stopPropagation();
 
@@ -185,7 +191,7 @@ export function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8
         const d = Math.min(1.0, Math.sqrt(x * x + y * y) / (size / 4));
         const a = (y !== 0 || x !== 0) ? Math.atan2(y, x) : 0;
         const vector = { x: Math.cos(a) * d, y: Math.sin(a) * d };
-        node.emit(phase, event, { type: phase, vector });
+        node.emit(ex.type, event, { type: ex.type, vector });
         [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
     });
 
@@ -194,7 +200,7 @@ export function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8
 
         const vector = { x: 0, y: 0 };
 
-        node.emit('end', event, { type: 'end', vector });
+        node.emit(ex.type, event, { type: ex.type, vector });
         [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
     });
 }

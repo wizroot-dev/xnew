@@ -11,26 +11,51 @@
 </head>
 
 <body style="height: 100vh; margin: 0; display: flex; justify-content: center; align-items: center;">
+    <div id="parent" style="position: absolute; width: 200px; height: 200px; background: #08F;"></div>
+    <div id="child" style="position: absolute; width: 100px; height: 100px; background: #F80;"></div>
 
     <script>
-        xnew(({ node }) => {
-            node.nestElement({ tag:'div', style: 'width: 200px; height: 200px; background: #08F; '}, 'start');
+        xnew(document.querySelector('#parent'), Parent);
 
-            node.on('click', () => {
-                node.isStarted() ? node.stop() : node.start();
-            });
+        function Parent({ node }) {
+            node.on('click', () => node.isStarted() ? node.stop() : node.start());
+
+            xnew(document.querySelector('#child'), Child);
+
+            let counter = 0;
             return {
                 start: () => {
                     node.element.textContent = 'start';
+                    console.log('parent start');
                 },
-                update: (time) => {
-                    node.element.style.transform = `rotate(${time / 10}deg)`;
+                update: () => {
+                    node.element.style.transform = `rotate(${counter++}deg)`;
                 },
                 stop: () => {
                     node.element.textContent = 'stop';
+                    console.log('parent stop');
                 },
             };
-        });
+        }
+
+        function Child({ node }) {
+            node.on('click', () => node.isStarted() ? node.stop() : node.start());
+
+            let counter = 0;
+            return {
+                start: () => {
+                    node.element.textContent = 'start';
+                    console.log('child start');
+                },
+                update: () => {
+                    node.element.style.transform = `rotate(${counter++}deg)`;
+                },
+                stop: () => {
+                    node.element.textContent = 'stop';
+                    console.log('child stop');
+                },
+            };
+        }
 
     </script>
 </body>
