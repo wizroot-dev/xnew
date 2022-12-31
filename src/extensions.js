@@ -63,28 +63,36 @@ export function DrawEvent({ node }) {
     const base = xnew();
     const win = xnew(window);
 
-    let [id, start, end] = [null, null, null];
-    base.on('mousedown touchstart', down);
+    let [id, position1, position2] = [null, null, null];
+    base.on('mousedown touchstart', start);
 
-    function down(event) {
+    function start(event) {
         if (id !== null) return;
         const position = getPosition(event, id = getId(event));
-        start = position;
-        end = position;
-        node.emit('start', event, { type: 'start', id, start, end, });
+
+        position1 = position;
+        position2 = position;
+
+        const type = 'start';
+        node.emit(type, event, { type, id, start: position1, end: position2, });
         win.on('mousemove touchmove', move);
-        win.on('mouseup touchend', up);
+        win.on('mouseup touchend', end);
     };
     function move(event) {
         const position = getPosition(event, id);
-        const delta = { x: position.x - end.x, y: position.y - end.y };
-        end = position;
-        node.emit('move', event, { type: 'move', id, start, end, delta, });
+        const delta = { x: position.x - position2.x, y: position.y - position2.y };
+        position2 = position;
+
+        const type = 'move';
+        node.emit(type, event, { type, id, start: position1, end: position2, delta, });
     };
-    function up(event) {
+    function end(event) {
         const position = getPosition(event, id);
-        node.emit('end', event, { type: 'end', id, position, });
-        [id, start, end] = [null, null, null];
+        position2 = position;
+        
+        const type = 'end';
+        node.emit(type, event, { type, id, start: position1, end: position2, });
+        [id, position1, position2] = [null, null, null];
         win.off();
     };
 

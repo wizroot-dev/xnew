@@ -34,7 +34,7 @@
 
         // case4
         xnew({ style }, () => {
-            const screen = xnew(xn.Screen, { width: 200, height: 100 });
+            const screen = xnew(xn.Screen, { width: 200, height: 100, objectFit: 'contain' });
             xnew(Content, { canvas: screen.canvas });
         });
 
