@@ -89,7 +89,7 @@ export function DrawEvent({ node }) {
     function end(event) {
         const position = getPosition(event, id);
         position2 = position;
-        
+
         const type = 'end';
         node.emit(type, event, { type, id, start: position1, end: position2, });
         [id, position1, position2] = [null, null, null];
@@ -134,37 +134,49 @@ function _AudioContext() {
     return AUDIO_CONTEXT;
 }
 
-export function Audio({ node, url }) {
-    let source = null;
-    let buffer;
 
-    const gain = _AudioContext().createGain();
+export function Audio({ node, urls }) {
+    // let source = null;
+    // let buffer;
 
-    return {
-        promise: fetch(url)
-            .then((response) => response.arrayBuffer())
-            .then((response) => _AudioContext().decodeAudioData(response))
-            .then((response) => buffer = response),
-        play: () => {
-            if (buffer) {
-                node.pause();
-                source = _AudioContext().createBufferSource();
-                source.buffer = buffer;
-                source.connect(gain).connect(_AudioContext().destination);
-                source.start(0);
-            }
-        },
-        pause: () => {
-            if (source) {
-                source.stop();
-                source = null;
-            }
-        },
-        volume: {
-            set: (value) => gain.gain.value = value,
-            get: () => gain.gain.value,
-        },
-    }
+    // const gain = _AudioContext().createGain();
+    
+    // const map = new Map();
+    // urls.keys().forEach((key) => {
+    //     const value = { promise: null, buffer: null };
+
+    //     value.promise = fetch(urls[key])
+    //         .then((response) => response.arrayBuffer())
+    //         .then((response) => _AudioContext().decodeAudioData(response))
+    //         .then((response) => value.buffer = response);
+    //     map.set(key, value);
+    // });
+
+    // return {
+    //     promise: fetch(url)
+    //         .then((response) => response.arrayBuffer())
+    //         .then((response) => _AudioContext().decodeAudioData(response))
+    //         .then((response) => buffer = response),
+    //     play: () => {
+    //         if (buffer) {
+    //             node.pause();
+    //             source = _AudioContext().createBufferSource();
+    //             source.buffer = buffer;
+    //             source.connect(gain).connect(_AudioContext().destination);
+    //             source.start(0);
+    //         }
+    //     },
+    //     pause: () => {
+    //         if (source) {
+    //             source.stop();
+    //             source = null;
+    //         }
+    //     },
+    //     volume: {
+    //         set: (value) => gain.gain.value = value,
+    //         get: () => gain.gain.value,
+    //     },
+    // }
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -183,7 +195,7 @@ export function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8
         <polygon points="10 50 20 40 20 60"></polygon>
         <polygon points="90 50 80 40 80 60"></polygon>
     `);
-    const target = xnew({ tag: 'svg', style: `position: absolute; width: 100%; height: 100%; ${fillStyle} ${strokeStyle}"`, viewBox: '0 0 100 100' }, `
+    const target = xnew({ tag: 'svg', name: 'target', style: `position: absolute; width: 100%; height: 100%; ${fillStyle} ${strokeStyle}"`, viewBox: '0 0 100 100' }, `
         <circle cx="50" cy="50" r="20"></circle>
     `);
 
@@ -224,7 +236,7 @@ export function CircleButton({ node, size = 80, fill = '#FFF', fillOpacity = 0.8
     const fillStyle = `fill: ${fill}; fill-opacity: ${fillOpacity};`;
     const strokeStyle = `stroke-linejoin: round; stroke: ${stroke}; stroke-opacity: ${strokeOpacity}; stroke-width: ${strokeWidth / (size / 100)};`;
 
-    const target = xnew({ tag: 'svg', style: `width: 100%; height: 100%; cursor: pointer; user-select: none; ${fillStyle} ${strokeStyle}`, viewBox: '0 0 100 100' }, `
+    const target = xnew({ tag: 'svg', name: 'target', style: `width: 100%; height: 100%; cursor: pointer; user-select: none; ${fillStyle} ${strokeStyle}`, viewBox: '0 0 100 100' }, `
         <circle cx="50" cy="50" r="40"></circle>
     `);
 
