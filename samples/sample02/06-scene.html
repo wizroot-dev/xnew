@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>sample02-scene</title>
+
+    <script src="../xnew.js"></script>
+    <style>
+        html { height: -webkit-fill-available; }
+        body { min-height: 100vh; min-height: -webkit-fill-available; margin: 0; }
+    </style>
+</head>
+
+<body>
+    <div style="position: absolute; width: 100%; height: 100%;">
+        <div id="case1" style="width: 200px; height: 100px; margin: 16px auto; background: #08F;"></div>
+        <div id="case2" style="width: 200px; height: 100px; margin: 16px auto; background: #F80;"></div>
+    </div>
+    <script>
+        xnew(document.querySelector('#case1'), () => {
+            xnew(Scene1_1);
+        });
+        xnew(document.querySelector('#case2'), () => {
+            xnew(Scene2_1);
+        });
+
+        function Scene1_1({ node }) {
+            node.element.textContent = 'scene1_1';
+            node.on('click', () =>  {
+                xnew(node.parent, Scene1_2);
+                node.finalize();
+            });
+        }
+        function Scene1_2({ node }) {
+            node.element.textContent = 'scene1_2';
+            node.on('click', () =>  {
+                xnew(node.parent, Scene1_1);
+                node.finalize();
+            });
+        }
+
+        function Scene2_1({ node }) {
+            node.element.textContent = 'scene2_1';
+            node.on('click', () =>  {
+                xnew(node.parent, Scene2_2);
+                node.finalize();
+            });
+        }
+
+        function Scene2_2({ node }) {
+            // loading items;
+            const items = [
+                new Promise((resolve, reject) => { node.setTimer(500, () => resolve()); }),
+                new Promise((resolve, reject) => { node.setTimer(1000, () => resolve()); }),
+                new Promise((resolve, reject) => { node.setTimer(1500, () => resolve()); }),
+                new Promise((resolve, reject) => { node.setTimer(2000, () => resolve()); }),
+                new Promise((resolve, reject) => { node.setTimer(2500, () => resolve()); }),
+                new Promise((resolve, reject) => { node.setTimer(3000, () => resolve()); }),
+            ]
+            const loading = xnew(node.parent, Loading, { items });
+
+            node.element.textContent = '';
+            
+            node.on('click', () =>  { 
+                if (node.isStarted()) {
+                    xnew(node.parent, Scene2_1);
+                    node.finalize();
+                }
+            });
+
+            return {
+                promise: Promise.all(items),
+                start: () => {
+                    node.element.textContent = 'scene2_2';
+                },
+            }
+        }
+        function Loading({ node, items }) {
+            node.element.textContent = 'loading';
+
+            let counter = 0;
+            items.forEach((item) => {
+                item.then(() => { counter++; });
+            });
+            return {
+                update: () => {
+                    if (counter < items.length) {
+                        let str = 'loading';
+                        for (let i = 0; i < counter; i++) {
+                            str += '.';
+                        }
+                        node.element.textContent = str;
+                    } else {
+                        node.finalize();
+                    }
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>

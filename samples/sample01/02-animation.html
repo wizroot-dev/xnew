@@ -8,11 +8,15 @@
     <title>sample01-animation</title>
 
     <script src="../xnew.js"></script>
+    <style>
+        html { height: -webkit-fill-available; }
+        body { min-height: 100vh; min-height: -webkit-fill-available; margin: 0; }
+    </style>
 </head>
 
-<body style="height: 100vh; margin: 0; display: flex; justify-content: center; align-items: center;">
-    <div id="parent" style="position: absolute; width: 200px; height: 200px; background: #08F;"></div>
-    <div id="child" style="position: absolute; width: 100px; height: 100px; background: #F80;"></div>
+<body>
+    <div id="parent" style="position: absolute; width: 200px; height: 200px; inset: 0; margin: auto; background: #08F;"></div>
+    <div id="child" style="position: absolute; width: 100px; height: 100px; inset: 0; margin: auto; background: #F80;"></div>
 
     <script>
         xnew(document.querySelector('#parent'), Parent);
