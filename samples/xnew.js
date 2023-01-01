@@ -20,7 +20,7 @@
       let counter = 0;
 
       const parent = assign((target) => target instanceof Node || target === null);
-      const element = assign((target) => target instanceof Element || target === window || (typeof target === 'object' && target !== null));
+      const element = assign((target) => target instanceof Element || target === window || isObject(target));
       const content = args.slice(counter);
 
       function assign(check) {
@@ -32,16 +32,14 @@
   //----------------------------------------------------------------------------------------------------
   // function xfind (key)
   //
-  // key  : string
-  //         ex 'hoge'
-  //         ex 'hoge fuga'
+  // key  : string (ex 'hoge', 'hoge fuga')
   //----------------------------------------------------------------------------------------------------
 
   function xfind(key) {
-      const set = new Set();
+      const set = new Set;
       key.split(' ').forEach((k) => {
-          if (k !== '' && Node.map.has(k)) {
-              Node.map.get(k).forEach((node) => set.add(node));
+          if (k !== '' && Node.keyMap.has(k)) {
+              Node.keyMap.get(k).forEach((node) => set.add(node));
           }
       });
       return [...set];
@@ -57,23 +55,23 @@
           // internal data
           this._ = {};
 
-          this._.phase = 'stop';     // [stop ->start ->...] stop ->finalize
+          this._.phase = 'initialize';  // initialize ->[stop ->start ->...] stop ->finalize
           this._.tostart = false;
           this._.resolve = false;
 
           this._.defines = {};
-          this._.listeners = new Map();
+          this._.listeners = new Map;
           
           // parent Node class
           this.parent = parent instanceof Node ? parent : Node.current.node;
-          this.parent?._.children.add(this);
 
-          this._.children = new Set();
+          this.parent?._.children.add(this);
+          this._.children = new Set;
 
           if (element instanceof Element || element === window) {
               this._.base = element;
               this.element = this._.base;
-          } else if (typeof element === 'object' && element !== null) {
+          } else if (isObject(element)) {
               this._.base = this.parent ? this.parent.element : document.body;
               this.element = this._.base.appendChild(createElementWithAttributes(element));
           } else {
@@ -84,15 +82,18 @@
           // global data
           this.global = this.parent?.global ?? {};
 
+          // auto start
           this.start();
+
           if (content.length > 0) {
-              let i = 0;
-              if (typeof content[i] === 'function') {
-                  this._extend(content[i++], (typeof content[i] === 'object' && content[i] !== null) ? content[i++] : {});
-              } else if (typeof content[i] === 'string' && this._.base !== this.element) {
+              if (isFunction(content[0])) {
+                  this._extend(content[0], isObject(content[1]) ? content[1] : {});
+              } else if (isString(content[0]) && this._.base !== this.element) {
                   this.element.innerHTML = content[0];
               }
           }
+
+          this.promise.then((response) => { this._.resolve = true; return response; });
 
           // animation
           if (this.parent === null) {
@@ -103,6 +104,8 @@
                   this._.frameId = requestAnimationFrame(ticker.bind(this));
               }
           }
+
+          this._.phase = 'stop';
       }
       
       //----------------------------------------------------------------------------------------------------
@@ -111,47 +114,33 @@
       
       _extend(component, props) {
           const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }));
+          if (isObject(defines) === false) return;
 
-          if (typeof defines === 'object' && defines !== null) {
-              Object.keys(defines).forEach((key) => {
-                  if (key === 'promise'){
-                      if (defines[key] instanceof Promise) {
-                          this._.defines[key] = defines[key];
-                      } else {
-                          console.error(`xnew define error: "${key}" is improper format.`);
-                      }
-                  } else if (['start', 'update', 'stop', 'finalize'].includes(key)) {
-                      if (typeof defines[key] === 'function') {
-                          this._.defines[key] = defines[key];
-                      } else {
-                          console.error(`xnew define error: "${key}" is improper format.`);
-                      }
-                  } else if (this._.defines[key] || !this[key]) {
-                      if (typeof defines[key] === 'object' || typeof defines[key] === 'function') {
-                          this._.defines[key] = defines[key];
+          Object.keys(defines).forEach((key) => {
+              if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key) || this[key] === undefined) {
+                  const value = defines[key];
+                  if ((key === 'promise' && value instanceof Promise)){
+                      this._.defines[key] = value;
+                  } else if (['start', 'update', 'stop', 'finalize'].includes(key) && isFunction(value)) {
+                      this._.defines[key] = value;
+                  } else if (this[key] === undefined && (isObject(value) || isFunction(value))) {
+                      this._.defines[key] = value;
 
-                          const object = typeof defines[key] === 'object' ? defines[key] : { value: defines[key] };
+                      const object = isObject(value) ? value : { value };
 
-                          let descripters = {};
-                          Object.keys(object).forEach((key) => {
-                              const value = object[key];
-                              if (['value', 'set', 'get'].includes(key) && typeof value === 'function') {
-                                  descripters[key] = (...args) => Node.wrap(this, value, ...args);
-                              } else {
-                                  descripters[key] = value;
-                              }
-                          });
-                          Object.defineProperty(this, key, descripters);
-                      } else {
-                          console.error(`xnew define error: "${key}" is improper format.`);
-                      }
+                      let descripters = {};
+                      Object.keys(object).forEach((key) => {
+                          const value = object[key];
+                          descripters[key] = isFunction(value) ? (...args) => Node.wrap(this, value, ...args) : value;
+                      });
+                      Object.defineProperty(this, key, descripters);
                   } else {
-                      console.error(`xnew define error: "${key}" already exists.`);
+                      console.error(`xnew define error: "${key}" is improper format.`);
                   }
-              });
-          }
-
-          this.promise.then((response) => { this._.resolve = true; return response; });
+              } else {
+                  console.error(`xnew define error: "${key}" already exists.`);
+              }
+          });
       }
 
       get promise() {
@@ -167,7 +156,7 @@
       }
 
       _start() {
-          if (this._.phase === 'stop' && (this.parent === null || this.parent._.phase === 'start') && this._.resolve === true && this._.tostart === true) {
+          if (this._.phase === 'stop' && (this.parent === null || this.parent.isStarted()) && this._.resolve === true && this._.tostart === true) {
               this._.phase = 'start';
               this._.children.forEach((node) => node._start());
               Node.wrap(this, this._.defines.start);
@@ -183,6 +172,8 @@
       }
 
       _update() {
+          if (this._.phase === 'finalize') return;
+
           this._.tostart === true ? this._start() : this._stop();
 
           this._.children.forEach((node) => node._update());
@@ -193,41 +184,41 @@
       }
 
       finalize() {
-          if (this._.phase !== 'finalize') {
-              this._stop();
+          this._stop();
+          if (this._.phase === 'finalize') return;
 
-              this._.phase = 'finalize';
-              [...this._.children].forEach((node) => node.finalize());
-              
-              Node.wrap(this, this._.defines.finalize);
+          this._.phase = 'finalize';
+          [...this._.children].forEach((node) => node.finalize());
+          
+          Node.wrap(this, this._.defines.finalize);
 
-              this.off();
+          // key
+          this.key = '';
 
-              // animation
-              if (this._.frameId) {
-                  cancelAnimationFrame(this._.frameId);
-              }
-              
-              // timer
-              this._.timerIds?.forEach((id) => {
-                  this.clearTimer(id);
-              });
-
-              // element
-              if (this.element !== null && this.element !== this._.base) {
-                  let target = this.element;
-                  while (target.parentElement !== null && target.parentElement !== this._.base) { target = target.parentElement; }
-                  if (target.parentElement === this._.base) {
-                      this._.base.removeChild(target);
-                  }
-              }
-              
-              // key
-              this.key = '';
-
-              // relation
-              this.parent?._.children.delete(this);
+          // event
+          this.off();
+          
+          // animation
+          if (this._.frameId) {
+              cancelAnimationFrame(this._.frameId);
           }
+          
+          // timer
+          this._.timerIds?.forEach((id) => {
+              this.clearTimer(id);
+          });
+
+          // element
+          if (this.element !== null && this.element !== this._.base) {
+              let target = this.element;
+              while (target.parentElement !== null && target.parentElement !== this._.base) { target = target.parentElement; }
+              if (target.parentElement === this._.base) {
+                  this._.base.removeChild(target);
+              }
+          }
+          
+          // relation
+          this.parent?._.children.delete(this);
       }
 
       isStarted() {
@@ -235,7 +226,7 @@
       }
 
       isStopped() {
-          return this._.phase === 'stop';
+          return this._.phase !== 'start';
       }
 
       isFinalized() {
@@ -247,35 +238,39 @@
       //----------------------------------------------------------------------------------------------------        
     
       nestElement(attributes, inner) {
-          this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
+          if (this._.phase === 'initialize') {
+              this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
+          }
       }
 
       //----------------------------------------------------------------------------------------------------
       // timer
       //----------------------------------------------------------------------------------------------------        
     
+      static timerId = 0;
+    
       setTimer(delay, callback, repeat = false) {
-          if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
-              const data = { id: Node.timerId++, timeout: null };
+          if (this._.phase === 'finalize') return null;
 
-              const func = () => {
-                  Node.wrap(this, callback);
-                  if (repeat) {
-                      data.timeout = setTimeout(func, delay);
-                  } else {
-                      this._.timerIds.delete(data.id);
-                  }
-              };
-              data.timeout = setTimeout(func, delay);
+          const data = { id: Node.timerId++, timeout: null };
 
-              this._.timerIds = this._.timerIds ?? new Map;
-              this._.timerIds.set(data.id, data);
-              return data.id;
-          }
+          const func = () => {
+              Node.wrap(this, callback);
+              if (repeat) {
+                  data.timeout = setTimeout(func, delay);
+              } else {
+                  this._.timerIds.delete(data.id);
+              }
+          };
+          data.timeout = setTimeout(func, delay);
+
+          this._.timerIds = this._.timerIds ?? new Map;
+          this._.timerIds.set(data.id, data);
+          return data.id;
       }
 
       clearTimer(id) {
-          if (this._.timerIds?.has(id)) {
+          if (this._.timerIds?.has(id) === true) {
               clearTimeout(this._.timerIds.get(id).timeout);
               this._.timerIds.delete(id);
           }
@@ -285,24 +280,26 @@
       // key
       //----------------------------------------------------------------------------------------------------
      
-      set key(key) {
-          if (typeof key !== 'string') return;
+      static keyMap = new Map;
 
+      set key(key) {
+          // clear
           (this._.key ?? '').split(' ').forEach((k) => {
               if (k !== '') {
-                  Node.map.get(k).delete(this);
+                  Node.keyMap.get(k).delete(this);
               }
           });
-
           this._.key = '';
 
-          const tmp = new Set();
+          if (isString(key) === false) return;
+
           key.split(' ').forEach((k) => {
-              if (k !== '' && !tmp.has(k)) {
-                  tmp.add(k);
-                  if (!Node.map.has(k)) Node.map.set(k, new Set);
-                  Node.map.get(k).add(this);
-                  this._.key += k + ' ';    
+              if (k !== '') {
+                  if (Node.keyMap.has(k) === false) Node.keyMap.set(k, new Set);
+                  if (Node.keyMap.get(k).has(this) === false) {
+                      Node.keyMap.get(k).add(this);
+                      this._.key += k + ' ';    
+                  }
               }
           });
       }
@@ -315,8 +312,10 @@
       // event method
       //----------------------------------------------------------------------------------------------------
      
+      static typeMap = new Map;
+   
       _subListener(type, listener) {
-          this._.listeners_wrapper = this._.listeners_wrapper ?? new Map();
+          this._.listeners_wrapper = this._.listeners_wrapper ?? new Map;
           if (this._.listeners_wrapper.has(listener) === false) {
               this._.listeners_wrapper.set(listener, (...args) => this.emit(type, ...args));
           }
@@ -324,8 +323,8 @@
       }
 
       on(type, listener, options) {
-          if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
-              if (typeof type === 'string' && type.split(' ').length > 1) {
+          if (isString(type) === true && isFunction(listener) === true) {
+              if (type.split(' ').length > 1) {
                   type.split(' ').forEach((type) => this._on(type, listener, options));
               } else {
                   this._on(type, listener, options);
@@ -334,89 +333,68 @@
       }
 
       _on(type, listener, options) {
-          if (typeof type === 'string' && type !== '') {
-              if (typeof listener === 'function') {
-                  if (this._.listeners.has(type) === false) this._.listeners.set(type, new Set());
-                  if (this._.listeners.get(type).has(listener) === false) {
-                      this._.listeners.get(type).add(listener);
-                      this.element?.addEventListener(type, this._subListener(type, listener), options ?? { passive: false });
-                  }
-              }
+          if (this._.listeners.has(type) === false) this._.listeners.set(type, new Set);
+          if (this._.listeners.get(type).has(listener) === false) {
+              this._.listeners.get(type).add(listener);
+              this.element?.addEventListener(type, this._subListener(type, listener), options ?? { passive: false });
+          }
+          if (Node.typeMap.has(type) === false) Node.typeMap.set(type, new Set);
+          if (Node.typeMap.get(type).has(this) === false) {
+              Node.typeMap.get(type).add(this);
           }
       }
 
       off(type, listener) {
-          if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
-              if (typeof type === 'string' && type.split(' ').length > 1) {
-                  type.split(' ').forEach((type) => this._off(type, listener));
-              } else {
-                  this._off(type, listener);
-              }
-          }
-      }
-
-      _off(type, listener) {
-          if (typeof type === 'string' && type !== '') {
-              if (typeof listener === 'function') {
-                  if (this._.listeners.has(type) === true && this._.listeners.get(type).has(listener) === true) {
-                      this._.listeners.get(type).delete(listener);
-                      this.element?.removeEventListener(type, this._subListener(type, listener));
-                  }
-              } else if (listener === null || listener === undefined) {
-                  if (this._.listeners.has(type) === true) {
-                      this._.listeners.delete(type);
-                  }
-              }
+          if (isString(type) === true && type.split(' ').length > 1) {
+              type.split(' ').forEach((type) => this._off(type, listener));
           } else if (type === null || type === undefined) {
               this._.listeners.forEach((set, type) => this._off(type, listener));
           }
       }
 
-      _listeners(type, listener) {
-          if (typeof type === 'string') {
-              if (typeof listener === 'function') {
-                  if (this._.listeners.has(type) === true && this._.listeners.get(type).has(listener) === true) {
-                      return [listener];
-                  }
-              } else if (listener === null || listener === undefined) {
-                  if (this._.listeners.has(type) === true) {
-                      return [...this._.listeners.get(type)];
-                  }
+      _off(type, listener) {
+          if (isFunction(listener)) {
+              if (this._.listeners.has(type) === true && this._.listeners.get(type).has(listener) === true) {
+                  this._.listeners.get(type).delete(listener);
+                  if (this._.listeners.get(type).size === 0) this._.listeners.delete(type);
+
+                  this.element?.removeEventListener(type, this._subListener(type, listener));
+              }
+          } else if (listener === null || listener === undefined) {
+              if (this._.listeners.has(type) === true) {
+                  this._.listeners.delete(type);
               }
           }
-          return [];
+          if (this._.listeners.has(type) === false) {
+              if (Node.typeMap.has(type) === true) {
+                  Node.typeMap.get(type).delete(this);
+                  if (Node.typeMap.get(type).size === 0) Node.typeMap.delete(type);
+              }
+          }
       }
 
       emit(type, ...args) {
-          if (this._.phase !== 'finalized' && this._.phase !== 'before finalize') {
+          if (this._.phase === 'finalize') return;
+
+          if (isString(type) === true) {
               if (type[0] === '#') {
-                  let node = this;
-                  while (node.parent) node = node.parent;
-                  node._downEmit(type, ...args);
-                  node._selfEmit(type, ...args);
+                  if (Node.typeMap.has(type)) {
+                      Node.typeMap.get(type).forEach((node) => node._emit(type, ...args));
+                  }
               } else {
-                  this._selfEmit(type, ...args);
+                  this._emit(type, ...args);
               }
           }
       }
 
-      _selfEmit(type, ...args) {
-          const listeners = this._listeners(type);
+      _emit(type, ...args) {
+          const listeners = this._.listeners.has(type) === true ? [...this._.listeners.get(type)] : [];
           if (listeners.length > 0) {
               Node.wrap(this, () => listeners.forEach((listener) => listener(...args)));
           }
       }
-
-      _downEmit(type, ...args) {
-          this._.children.forEach((node) => {
-              node._downEmit(type, ...args);
-              node._selfEmit(type, ...args);
-          });
-      }
       
-      static timerId = 0;
-      
-      static current = { node: null, parent: null };
+      static current = { prev: null, node: null };
 
       static wrap(node, func, ...args) {
           let response = undefined;
@@ -424,18 +402,16 @@
               response = func?.(...args);
           } else {
               try {
-                  Node.current = { node, parent: Node.current };
+                  Node.current = { prev: Node.current, node };
                   response = func?.(...args);
               } catch (e) {
                   throw e;
               } finally {
-                  Node.current = Node.current.parent;
+                  Node.current = Node.current.prev;
               }
           }
           return response;
       }
-
-      static map = new Map();
   }
 
   function createElementWithAttributes(attributes, innerHTML = null) {
@@ -451,15 +427,17 @@
       Object.keys(attributes).forEach((key) => {
           const value = attributes[key];
           if (key === 'style') {
-              if (typeof value === 'string') {
+              if (isString(value)) {
                   element.style = value;
-              } else if (typeof value === 'object'){
+              } else if (isObject(value)){
                   Object.assign(element.style, value);
               }
           } else if (key === 'className') {
-              if (typeof value === 'string') {
+              if (isString(value)) {
                   element.classList.add(...value.split(' '));
               }
+          } else if (key === 'class') {
+              console.warn('"class" is not available. Use "className" instead.');
           } else if (key !== 'tag') {
               element.setAttribute(key, value);
           }
@@ -469,6 +447,39 @@
       }
       return element;
   }
+
+  function isString(value) {
+      return typeof value === 'string' && value !== '';
+  }
+
+  function isFunction(value) {
+      return typeof value === 'function';
+  }
+
+  function isObject(value) {
+      return typeof value === 'object' && value !== null;
+  }
+
+  //----------------------------------------------------------------------------------------------------
+  // env 
+  //----------------------------------------------------------------------------------------------------
+
+  const env = (() => {
+
+      return new class {
+          isMobile() {
+              return navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/);
+          }
+          hasTouch() {
+              return window.ontouchstart !== undefined && navigator.maxTouchPoints > 0;
+          }
+      };
+  })();
+
+  var util = {
+    __proto__: null,
+    env: env
+  };
 
   //----------------------------------------------------------------------------------------------------
   // screen
@@ -589,50 +600,6 @@
   }
 
 
-  function Audio({ node, urls }) {
-      // let source = null;
-      // let buffer;
-
-      // const gain = _AudioContext().createGain();
-      
-      // const map = new Map();
-      // urls.keys().forEach((key) => {
-      //     const value = { promise: null, buffer: null };
-
-      //     value.promise = fetch(urls[key])
-      //         .then((response) => response.arrayBuffer())
-      //         .then((response) => _AudioContext().decodeAudioData(response))
-      //         .then((response) => value.buffer = response);
-      //     map.set(key, value);
-      // });
-
-      // return {
-      //     promise: fetch(url)
-      //         .then((response) => response.arrayBuffer())
-      //         .then((response) => _AudioContext().decodeAudioData(response))
-      //         .then((response) => buffer = response),
-      //     play: () => {
-      //         if (buffer) {
-      //             node.pause();
-      //             source = _AudioContext().createBufferSource();
-      //             source.buffer = buffer;
-      //             source.connect(gain).connect(_AudioContext().destination);
-      //             source.start(0);
-      //         }
-      //     },
-      //     pause: () => {
-      //         if (source) {
-      //             source.stop();
-      //             source = null;
-      //         }
-      //     },
-      //     volume: {
-      //         set: (value) => gain.gain.value = value,
-      //         get: () => gain.gain.value,
-      //     },
-      // }
-  }
-
   //----------------------------------------------------------------------------------------------------
   // analog stick
   //----------------------------------------------------------------------------------------------------
@@ -717,13 +684,14 @@
     __proto__: null,
     Screen: Screen,
     DrawEvent: DrawEvent,
-    Audio: Audio,
     AnalogStick: AnalogStick,
     CircleButton: CircleButton
   };
 
+  exports.Node = Node;
   exports.xfind = xfind;
   exports.xn = extensions;
   exports.xnew = xnew;
+  exports.xutil = util;
 
 }));
