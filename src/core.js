@@ -1,13 +1,19 @@
 //----------------------------------------------------------------------------------------------------
 // function xnew (parent, element, ...content)
 //
-// parent  : node (in many cases, this is omitted and set automatically)
-// element : two pattern
-//           1. html element or window: object (e.g. document.querySelector('#hoge'))
-//           2. attributes to create a html element: object (e.g. { tag: 'div', style: '' })
-// content : two pattern
-//           a. innerHTML: string
-//           b. component: function, props: object
+// - parent
+//     - node: object
+// 
+// - element
+//     1. attributes to create a html element: object
+//      (e.g. { tag: 'div', style: '' })
+//     2. an existing html element or window
+//      (e.g. document.querySelector('#hoge'))
+// 
+// - content
+//     a. component: function, +props: object
+//     b. innerHTML: string
+// 
 //----------------------------------------------------------------------------------------------------
 
 export function xnew(...args) {
@@ -26,7 +32,9 @@ export function xnew(...args) {
 //----------------------------------------------------------------------------------------------------
 // function xfind (key)
 //
-// key  : string (ex 'hoge', 'hoge fuga')
+// - key
+//     string (ex 'hoge', 'hoge fuga')
+//
 //----------------------------------------------------------------------------------------------------
 
 export function xfind(key) {
@@ -49,7 +57,7 @@ export class Node {
         // internal data
         this._ = {};
 
-        this._.phase = 'initialize';  // initialize ->[stop ->start ->...] stop ->finalize
+        this._.phase = 'initialize';  // initialize ->[stop ->start ->...] ->stop ->finalize
         this._.tostart = false;
         this._.resolve = false;
 
@@ -82,7 +90,7 @@ export class Node {
         if (content.length > 0) {
             if (isFunction(content[0])) {
                 this._extend(content[0], isObject(content[1]) ? content[1] : {});
-            } else if (isString(content[0]) && this._.base !== this.element) {
+            } else if (isValidString(content[0]) && this._.base !== this.element) {
                 this.element.innerHTML = content[0];
             }
         }
@@ -279,16 +287,16 @@ export class Node {
     set key(key) {
         // clear
         (this._.key ?? '').split(' ').forEach((k) => {
-            if (k !== '') {
+            if (isValidString(k) === true) {
                 Node.keyMap.get(k).delete(this)
             }
         });
         this._.key = '';
 
-        if (isString(key) === false) return;
+        if (isValidString(key) === false) return;
 
         key.split(' ').forEach((k) => {
-            if (k !== '') {
+            if (isValidString(k) === true) {
                 if (Node.keyMap.has(k) === false) Node.keyMap.set(k, new Set);
                 if (Node.keyMap.get(k).has(this) === false) {
                     Node.keyMap.get(k).add(this);
@@ -317,7 +325,7 @@ export class Node {
     }
 
     on(type, listener, options) {
-        if (isString(type) === true && isFunction(listener) === true) {
+        if (isValidString(type) === true && isFunction(listener) === true) {
             if (type.split(' ').length > 1) {
                 type.split(' ').forEach((type) => this._on(type, listener, options));
             } else {
@@ -339,7 +347,7 @@ export class Node {
     }
 
     off(type, listener) {
-        if (isString(type) === true && type.split(' ').length > 1) {
+        if (isValidString(type) === true && type.split(' ').length > 1) {
             type.split(' ').forEach((type) => this._off(type, listener));
         } else if (type === null || type === undefined) {
             this._.listeners.forEach((set, type) => this._off(type, listener));
@@ -370,7 +378,7 @@ export class Node {
     emit(type, ...args) {
         if (this._.phase === 'finalize') return;
 
-        if (isString(type) === true) {
+        if (isValidString(type) === true) {
             if (type[0] === '#') {
                 if (Node.typeMap.has(type)) {
                     Node.typeMap.get(type).forEach((node) => node._emit(type, ...args));
@@ -421,13 +429,13 @@ function createElementWithAttributes(attributes, innerHTML = null) {
     Object.keys(attributes).forEach((key) => {
         const value = attributes[key];
         if (key === 'style') {
-            if (isString(value)) {
+            if (isValidString(value)) {
                 element.style = value;
             } else if (isObject(value)){
                 Object.assign(element.style, value);
             }
         } else if (key === 'className') {
-            if (isString(value)) {
+            if (isValidString(value)) {
                 element.classList.add(...value.split(' '));
             }
         } else if (key === 'class') {
@@ -442,7 +450,7 @@ function createElementWithAttributes(attributes, innerHTML = null) {
     return element;
 }
 
-function isString(value) {
+function isValidString(value) {
     return typeof value === 'string' && value !== '';
 }
 
