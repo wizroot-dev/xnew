@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>sample01-find</title>
+
+    <script src="../xnew.js"></script>
+    <style>
+        body { height: 100vh; margin: 0; }
+    </style>
+</head>
+
+<body>
+    <script>
+        xnew(({ node }) => {
+            node.key = 'aaa';
+            return {
+                name: { get: () => 'node1' },
+            }
+        });
+        xnew(({ node }) => {
+            node.key = 'bbb';
+            return {
+                name: { get: () => 'node2' },
+            }
+        });
+        xnew(({ node }) => {
+            node.key = 'bbb ccc';
+            return {
+                name: { get: () => 'node3' },
+            }
+        });
+
+        xnew(() => {
+            xnew({ tag: 'div' }, `xfind('aaa') : ` + names(xfind('aaa')));
+            xnew({ tag: 'div' }, `xfind('bbb') : ` + names(xfind('bbb')));
+            xnew({ tag: 'div' }, `xfind('ccc') : ` + names(xfind('ccc')));
+            xnew({ tag: 'div' }, `xfind('aaa bbb') : ` + names(xfind('aaa bbb')));
+
+            function names(nodes) {
+                return nodes.reduce((a, c) => a + c.name + ',', '');
+            }
+        });
+    </script>
+</body>
+
+</html>
