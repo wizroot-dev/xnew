@@ -268,7 +268,7 @@ const node = xnew(({ node }) => {
 node.emit('myevent', data); 
 ```
 - `emit('myevent')` emits only to self node, and not to other nodes.
-- If you add `#` token, `emit('#myevent')` emit to all nodes connected by parent-child relationship. this message can be received by using `on('#myevent')`.
+- If you add `#` token (ex. `emit('#myevent')`), it emit to all nodes. this message can be received by using `on('#myevent')`.
 
 ### Timer
 By using a timer, you can set a function to be executed after a specified time.

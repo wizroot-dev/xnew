@@ -9,8 +9,7 @@
 
     <script src="../xnew.js"></script>
     <style>
-        html { height: -webkit-fill-available; }
-        body { min-height: 100vh; min-height: -webkit-fill-available; margin: 0; }
+        body { height: 100vh; margin: 0; }
     </style>
 </head>
 
@@ -20,11 +19,11 @@
             node.nestElement({ tag: 'p', style: 'padding: 8px;' });
             let counter = 0;
             return {
-                update: () => {
-                    node.element.textContent = counter + ' clicked';
+                setText: (text) => {
+                    node.element.textContent = text;
                 },
                 counter: {
-                    set: (value) => { counter = value; node.update(); },
+                    set: (value) => { counter = value; node.setText(counter + ' clicked'); },
                     get: () => counter,
                 },
             };
