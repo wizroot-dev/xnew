@@ -1,5 +1,5 @@
 # xnew
-Simple library for component based programing.  
+Simple javascript library for component based programing.  
 Useful for creating apps and games with dynamic scenes.
 
 ## Setup
@@ -136,20 +136,108 @@ function MyBox({ scene }) {
 ```
 function xnew (parent, element, ...content)
 
-parent : node (in many cases, this is omitted and set automatically)
-element: two patterns
-          1. html element or window: object (e.g. document.querySelector('#hoge'))
-          2. attributes to create a html element: object (e.g. { tag: 'div', style: '' })
-content: two patterns
-          a. innerHTML: string
-          b. component: function, +props: object
+- parent
+    - node: object
+
+- element
+    - attributes to create a html element: object
+     (e.g. { tag: 'div', style: '' })
+    - an existing html element or window: object
+     (e.g. document.querySelector('#hoge'))
+
+- content
+    - component: function, +props: object
+    - innerHTML: string
 ```
 
 As shown above, xnew accepts arguments (`parent`, `element`, `content`).  
 
 - **`parent`** is a parameter that is set as the parent node. In many cases, it is omitted, and set automatically. It is set when you intentionally want to bind to another node (described later).
 - **`element`** is a parameter for html element to associate with new node. If you omit this parameter, new node's element inherits the parent node's element. If there is no parent node, it inherits `document.body` element.
-- **`content`** is a parameter that set the behavior of the node. There are two patterns. First pattern is innerHTML for new element. Second pattern is component function and its properties.  
+- **`content`** is a parameter that set the behavior of the node. Component function and its properties, or innerHTML.  
+
+### Basic Patterns
+#### create a new node
+```
+xnew(Component, { data: 1 });
+
+function Component({ node, data }) {
+    // node: new node object
+    // data: 1
+    // ...
+}
+```
+
+#### create a new node and new element (from outside)
+```
+xnew({ tag: 'div', id: 'hoge' }, Component, { data: 1 });
+
+function Component({ node, data }) {
+    // node.element: new element(id=hoge)
+    // ...
+}
+```
+- You can also set any attributes.  
+ e.g. `{ tag: 'div', type: 'aaa', className: 'bbb', style: 'color: #000;' }`
+- However, if you set element `class`, use `className`, instead of the reserved word `class`.
+- If you omit `tag` property, tag=`'div'` will be set automatically.
+
+#### create a new node and a new element (from inside)
+```
+xnew(Component, { data: 1 });
+
+function Component({ node, data }) {
+    node.nestElement({ tag: 'div', id: 'hoge' });
+
+    // node.element: new element(id=hoge)
+    // ...
+}
+```
+
+#### create a new node and a new element (from both)
+```
+xnew(Component, { data: 1 });
+
+function Component({ tag: 'div', id: 'hoge' }, { node, data }) {
+    node.nestElement({ tag: 'div', id: 'fuga' });
+
+    // node.element: new element(id=fuga)
+    // node.element.parentElement: new element(id=hoge)
+    // ...
+}
+```
+
+#### create a new node and a new element with innerHTML
+```
+const node = xnew({ tag: 'div', id: 'hoge' }, `<p>text</p>`);
+
+function Component({ node, data }) {
+    // node.element: new element(id=hoge)
+    // node.element.innerHTML: <p>text</p>
+    // ...
+}
+```
+
+#### create a new node and associate with an existing element
+```
+// <div hoge>
+
+xnew(document.querySelector('#hoge'), Component, { data: 1 });
+
+function Component({ node, data }) {
+    // node.element: an existing element(id=hoge)
+    // ...
+}
+```
+
+#### create a new node as a child of an existing node
+```
+const node1 = xnew(Component1);
+// ...
+
+const node2 = xnew(node1, Component2);
+
+```
 
 ### Parent-child relationship
 If you call `xnew` like nesting, created nodes have a parent-child relationship. Child nodes hold a pointer to parent node. and Child node `element` is set based on the parent node's `element`.
@@ -196,7 +284,7 @@ const node = xnew(({ node }) => {
             // update will not start until this promise is resolved.
         }), 
         start: () => {
-            // fires before animation starts.
+            // fires before first update.
         },
         update: () => {
             // executed repeatedly
