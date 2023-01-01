@@ -381,7 +381,27 @@ xnew(({ node }) =>  {
 - Timers can be canceled by calling `clearTimer(id)` using the id.
 - Timers are automatically canceled when the node's `finalize` method is called.
 
+### Find node
+If you set a key for a node, you can find the node.
 
+```
+const node1 = xnew(({ node }) => {
+    node.key = 'aaa';
+});
+const node2 = xnew(({ node }) => {
+    node.key = 'bbb';
+});
+const node3 = xnew(({ node }) => {
+    node.key = 'bbb ccc';
+});
+
+
+xfind('aaa'); // [node1]
+xfind('bbb'); // [node2, node3]
+xfind('ccc'); // [node3]
+xfind('aaa bbb'); // [node1, node2, node3]
+
+```
 ### Parent node
 If you want to intentionally change the parent node, set first argument of `xnew`. For example, it is set in cases such as scene changes, where you want to create a sibling node in a node.
 
