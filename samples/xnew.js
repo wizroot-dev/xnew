@@ -774,7 +774,6 @@
     CircleButton: CircleButton
   };
 
-  exports.Node = Node;
   exports.xfind = xfind;
   exports.xn = extensions;
   exports.xnew = xnew;

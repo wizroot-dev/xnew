@@ -168,7 +168,7 @@ function Component({ node, data }) {
 }
 ```
 
-#### create a new node and new element (from outside)
+#### create a new node and new element (case 1)
 ```
 xnew({ tag: 'div', id: 'hoge' }, Component, { data: 1 });
 
@@ -179,10 +179,10 @@ function Component({ node, data }) {
 ```
 - You can also set any attributes.  
  e.g. `{ tag: 'div', type: 'aaa', className: 'bbb', style: 'color: #000;' }`
-- However, if you set element `class`, use `className`, instead of the reserved word `class`.
+- If you set element `class`, use `className` instead of the reserved word `class`.
 - If you omit `tag` property, tag=`'div'` will be set automatically.
 
-#### create a new node and a new element (from inside)
+#### create a new node and a new element (case 2)
 ```
 xnew(Component, { data: 1 });
 
@@ -194,7 +194,7 @@ function Component({ node, data }) {
 }
 ```
 
-#### create a new node and a new element (from both)
+#### create a new node and a new element (case 3)
 ```
 xnew(Component, { data: 1 });
 
@@ -203,17 +203,6 @@ function Component({ tag: 'div', id: 'hoge' }, { node, data }) {
 
     // node.element: new element(id=fuga)
     // node.element.parentElement: new element(id=hoge)
-    // ...
-}
-```
-
-#### create a new node and a new element with innerHTML
-```
-const node = xnew({ tag: 'div', id: 'hoge' }, `<p>text</p>`);
-
-function Component({ node, data }) {
-    // node.element: new element(id=hoge)
-    // node.element.innerHTML: <p>text</p>
     // ...
 }
 ```
@@ -237,6 +226,16 @@ const node1 = xnew(Component1);
 
 const node2 = xnew(node1, Component2);
 
+```
+#### create a new node and a new element with innerHTML
+```
+const node = xnew({ tag: 'div', id: 'hoge' }, `<p>text</p>`);
+
+function Component({ node, data }) {
+    // node.element: new element(id=hoge)
+    // node.element.innerHTML: <p>text</p>
+    // ...
+}
 ```
 
 ### Parent-child relationship

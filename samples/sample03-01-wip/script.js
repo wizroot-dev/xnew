@@ -25,10 +25,10 @@ function Input({ node }) {
 
         const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xn.CircleButton);
         button.on('down', () => {
-            node.emit('#shoton');
+            node.emit('#shot', true);
         });
         button.on('up', () => {
-            node.emit('#shotoff');
+            node.emit('#shot', false);
         });
     } else {
         const keyState = {};
@@ -75,14 +75,11 @@ function Title({ node, screen, stage }) {
 function GameMain({ node, screen, stage }) {
     const scene = stage.addChild(new PIXI.Container());
     
-    let delay = 100;
-    const addEnemy = () => {
+    node.setTimer(100, () => {
         xnew(Enemy, { screen, scene });
-        node.setTimer(delay, addEnemy);
-    }
-    addEnemy();
+    }, true);
 
-    const player = xnew(Player, { screen, scene });
+    xnew(Player, { screen, scene });
 
     node.on('#gameover', () => {
         xnew(node.parent, GameOver, { screen, stage })
@@ -131,15 +128,11 @@ function Player({ node, screen, scene }) {
     object.y = screen.height / 2;
 
     let velocity = { x: 0, y: 0 };
-    node.on('#move', ({ vector }) => {
-        velocity = vector;
-    });
+    node.on('#move', ({ vector }) => { velocity = vector; });
 
     let shot = false;
     let stanby = true;
-    node.on('#shot', (flag) => {
-        shot = flag;
-    });
+    node.on('#shot', (flag) => { shot = flag; });
 
     return {
         update: () => {
@@ -161,9 +154,7 @@ function Player({ node, screen, scene }) {
             if (shot && stanby) {
                 xnew(Bullet, { screen, scene, position: { x: object.x, y: object.y } });
                 stanby = false;
-                node.setTimer(200, () => {
-                    stanby = true;
-                });
+                node.setTimer(200, () => { stanby = true; });
             }
         },
         finalize: () => {
@@ -211,7 +202,7 @@ function Bullet({ node, screen, scene, position }) {
 function Enemy({ node, screen, scene }) {
     node.key = 'enemy';
 
-    const texture = PIXI.Texture.from('enemy.png');
+    const texture = PIXI.Texture.from('texture.png');
     const texture1 = new PIXI.Texture(texture, new PIXI.Rectangle(0, 0, 32, 32));
 
     const object = scene.addChild(new PIXI.Container());
@@ -240,7 +231,6 @@ function Enemy({ node, screen, scene }) {
             node.finalize();
         },
         finalize: () => {
-            
             scene.removeChild(object);
         },
         object: { get: () => object },
