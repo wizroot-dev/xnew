@@ -4,44 +4,46 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>tips - pixi-three</title>
+    <title>example02-pixi-three</title>
 
-    <script src="pixi.min.js"></script>
-    <script src="three.min.js"></script>
-    <script src="../dist/xnew.js"></script>
+    <script src="../pixi.min.js"></script>
+    <script src="../three.min.js"></script>
+    <script src="../xnew.js"></script>
+    <style>
+        body { height: 100vh; margin: 0; }
+    </style>
 </head>
-
 <body style="height: 100vh; margin: 0;">
 
     <script>
         xnew(function() {
+            const screen = xnew(xn.Screen, { width: 800, height: 450 });
             const [width, height] = [800, 450];
             const canvas = xnew({ tag: 'canvas', width, height, style: 'width: 100%; height: 100%; vertical-align: bottom; object-fit: contain' });
 
             const three = {};
             three.renderer = new THREE.WebGLRenderer({}); // not set canvas
-            three.renderer.setSize(width, height);
+            three.renderer.setSize(screen.width, screen.height);
 
-            three.camera = new THREE.PerspectiveCamera(45, width / height);
+            three.camera = new THREE.PerspectiveCamera(45, screen.width / screen.height);
             three.camera.position.set(0, 0, +100);
             three.scene = new THREE.Scene();
 
             const pixi = {};
-            pixi.renderer = PIXI.autoDetectRenderer({ view: canvas.element, width, height });
+            pixi.renderer = PIXI.autoDetectRenderer({ view: screen.canvas, width: screen.width, height: screen.height });
             pixi.scene = new PIXI.Container();
-            pixi.scene = new PIXI.Container();
-            [pixi.scene.x, pixi.scene.y] = [width / 2, height / 2];
+            [pixi.scene.x, pixi.scene.y] = [screen.width / 2, screen.height / 2];
             
             const texture = PIXI.Texture.from(three.renderer.domElement);
             const sprite = new PIXI.Sprite(texture);
-            [sprite.pivot.x, sprite.pivot.y] = [width / 2, height / 2];
+            [sprite.pivot.x, sprite.pivot.y] = [screen.width / 2, screen.height / 2];
             pixi.scene.addChild(sprite);
 
             xnew(MyBox, { scene: pixi.scene });
             xnew(MyCube, { scene: three.scene });
 
             return {
-                animate: () => {
+                update: () => {
                     three.renderer.render(three.scene, three.camera);
                     sprite.texture.update()
                     pixi.renderer.render(pixi.scene)
@@ -56,7 +58,7 @@
             graphics.endFill();
            
             return {
-                animate: () => {
+                update: () => {
                     object.rotation += 0.01;
                 },
                 finalize: () => {
@@ -72,7 +74,7 @@
             scene.add(object);
 
             return {
-                animate: () => {
+                update: () => {
                     object.rotation.y += 0.01;
                 },
                 finalize: () => {
