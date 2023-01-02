@@ -13,7 +13,7 @@
   // - element
   //     1. attributes to create a html element: object
   //      (e.g. { tag: 'div', style: '' })
-  //     2. an existing html element or window
+  //     2. an existing html element or window: object
   //      (e.g. document.querySelector('#hoge'))
   // 
   // - content
@@ -484,9 +484,87 @@
       };
   })();
 
+
+
+
+  //----------------------------------------------------------------------------------------------------
+  // audio 
+  //----------------------------------------------------------------------------------------------------
+
+  const audio = (() => {
+      const context = new (window.AudioContext || window.webkitAudioContext);
+      const map = new Map();
+
+      return new class {
+          fetch(paths) {
+
+          }
+          make() {
+      
+          }
+          load(path) {
+              if (map.has(path)) {
+                  return map.get(path);
+              } else {
+                  fetch(url)
+                      .then((response) => response.arrayBuffer())
+                      .then((response) => context.decodeAudioData(response))
+                      .then((response) => response);
+              }
+          }
+      };
+  })();
+
+
+  function Audio({ node, urls }) {
+      // let source = null;
+      // let buffer;
+
+      // const gain = _AudioContext().createGain();
+      
+      // const map = new Map();
+      // urls.keys().forEach((key) => {
+      //     const value = { promise: null, buffer: null };
+
+      //     value.promise = fetch(urls[key])
+      //         .then((response) => response.arrayBuffer())
+      //         .then((response) => _AudioContext().decodeAudioData(response))
+      //         .then((response) => value.buffer = response);
+      //     map.set(key, value);
+      // });
+
+      // return {
+      //     promise: fetch(url)
+      //         .then((response) => response.arrayBuffer())
+      //         .then((response) => _AudioContext().decodeAudioData(response))
+      //         .then((response) => buffer = response),
+      //     play: () => {
+      //         if (buffer) {
+      //             node.pause();
+      //             source = _AudioContext().createBufferSource();
+      //             source.buffer = buffer;
+      //             source.connect(gain).connect(_AudioContext().destination);
+      //             source.start(0);
+      //         }
+      //     },
+      //     pause: () => {
+      //         if (source) {
+      //             source.stop();
+      //             source = null;
+      //         }
+      //     },
+      //     volume: {
+      //         set: (value) => gain.gain.value = value,
+      //         get: () => gain.gain.value,
+      //     },
+      // }
+  }
+
   var util = {
     __proto__: null,
-    env: env
+    env: env,
+    audio: audio,
+    Audio: Audio
   };
 
   //----------------------------------------------------------------------------------------------------

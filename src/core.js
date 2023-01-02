@@ -7,7 +7,7 @@
 // - element
 //     1. attributes to create a html element: object
 //      (e.g. { tag: 'div', style: '' })
-//     2. an existing html element or window
+//     2. an existing html element or window: object
 //      (e.g. document.querySelector('#hoge'))
 // 
 // - content
