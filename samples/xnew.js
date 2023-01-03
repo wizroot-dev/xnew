@@ -500,71 +500,190 @@
 
           }
           make() {
-      
+
           }
           load(path) {
-              if (map.has(path)) {
-                  return map.get(path);
-              } else {
-                  fetch(url)
-                      .then((response) => response.arrayBuffer())
-                      .then((response) => context.decodeAudioData(response))
-                      .then((response) => response);
-              }
+              if (map.has(path)) return map.get(path);
+              return new Audio(context, path);
           }
       };
   })();
 
+  function Audio(context, path) {
 
-  function Audio({ node, urls }) {
-      // let source = null;
-      // let buffer;
+      let audioBuffer = null;
+      const promise = fetch(path)
+          .then((response) => response.arrayBuffer())
+          .then((response) => context.decodeAudioData(response))
+          .then((response) => audioBuffer = response);
 
-      // const gain = _AudioContext().createGain();
-      
-      // const map = new Map();
-      // urls.keys().forEach((key) => {
-      //     const value = { promise: null, buffer: null };
+      const volumeNode = context.createGain();
+      const panNode = context.createStereoPanner ? context.createStereoPanner() : context.createPanner();
+      context.createDelay();
+      context.createGain();
+      context.createBiquadFilter();
+      context.createConvolver();
+    
+      let soundNode = null;
+      let loop = false;
 
-      //     value.promise = fetch(urls[key])
-      //         .then((response) => response.arrayBuffer())
-      //         .then((response) => _AudioContext().decodeAudioData(response))
-      //         .then((response) => value.buffer = response);
-      //     map.set(key, value);
-      // });
+      let startTime = 0;
 
-      // return {
-      //     promise: fetch(url)
-      //         .then((response) => response.arrayBuffer())
-      //         .then((response) => _AudioContext().decodeAudioData(response))
-      //         .then((response) => buffer = response),
-      //     play: () => {
-      //         if (buffer) {
-      //             node.pause();
-      //             source = _AudioContext().createBufferSource();
-      //             source.buffer = buffer;
-      //             source.connect(gain).connect(_AudioContext().destination);
-      //             source.start(0);
-      //         }
-      //     },
-      //     pause: () => {
-      //         if (source) {
-      //             source.stop();
-      //             source = null;
-      //         }
-      //     },
+      let playbackRate = 1;
+
+      Object.defineProperties(this, {
+          isReady: {
+              get:  () => audioBuffer ? true : false,
+          },
+          promise: {
+              get: () => promise,
+          }
+      });
+      this.play = (offset = 0) => {
+          if (this.isReady === false) return;
+          if (soundNode) {
+              soundNode.stop(0);
+          }
+
+          // Set the start time (it will be `0` when the sound first starts.
+          startTime = context.currentTime;
+
+          //Create a sound node.
+          soundNode = context.createBufferSource();
+
+          //Set the sound node's buffer property to the loaded sound.
+          soundNode.buffer = audioBuffer;
+
+          //Set the playback rate
+          soundNode.playbackRate.value = playbackRate;
+
+          //Connect the sound to the pan, connect the pan to the
+          //volume, and connect the volume to the destination.
+          soundNode.connect(volumeNode);
+
+          //If there's no reverb, bypass the convolverNode
+          //If there is reverb, connect the `convolverNode` and apply
+          //the impulse response
+          {
+              volumeNode.connect(panNode);
+          }
+
+          //Connect the `panNode` to the destination to complete the chain.
+          panNode.connect(context.destination);
+
+          //Will the sound loop? This can be `true` or `false`.
+          soundNode.loop = loop;
+
+          soundNode.start(0, offset);
+      };
+
+      this.pause = function () {
+          if (soundNode) {
+              soundNode.stop(0);
+              return (context.currentTime - startTime) % audioBuffer.duration;
+          }
+      };
+
+      // o.setEcho = function (delayValue, feedbackValue, filterValue) {
+      //     if (delayValue === undefined) delayValue = 0.3;
+      //     if (feedbackValue === undefined) feedbackValue = 0.3;
+      //     if (filterValue === undefined) filterValue = 0;
+      //     o.delayValue = delayValue;
+      //     o.feebackValue = feedbackValue;
+      //     o.filterValue = filterValue;
+      //     o.echo = true;
+      // };
+
+      // o.setReverb = function (duration, decay, reverse) {
+      //     if (duration === undefined) duration = 2;
+      //     if (decay === undefined) decay = 2;
+      //     if (reverse === undefined) reverse = false;
+      //     o.reverbImpulse = impulseResponse(duration, decay, reverse, actx);
+      //     o.reverb = true;
+      // };
+
+      // //A general purpose `fade` method for fading sounds in or out.
+      // //The first argument is the volume that the sound should
+      // //fade to, and the second value is the duration, in seconds,
+      // //that the fade should last.
+      // o.fade = function (endValue, durationInSeconds) {
+      //     if (o.playing) {
+      //         o.volumeNode.gain.linearRampToValueAtTime(
+      //             o.volumeNode.gain.value, actx.currentTime
+      //         );
+      //         o.volumeNode.gain.linearRampToValueAtTime(
+      //             endValue, actx.currentTime + durationInSeconds
+      //         );
+      //     }
+      // };
+
+      // //Fade a sound in, from an initial volume level of zero.
+
+      // o.fadeIn = function (durationInSeconds) {
+
+      //     //Set the volume to 0 so that you can fade
+      //     //in from silence
+      //     o.volumeNode.gain.value = 0;
+      //     o.fade(1, durationInSeconds);
+
+      // };
+
+      // //Fade a sound out, from its current volume level to zero.
+      // o.fadeOut = function (durationInSeconds) {
+      //     o.fade(0, durationInSeconds);
+      // };
+
+      // //Volume and pan getters/setters.
+      // Object.defineProperties(o, {
       //     volume: {
-      //         set: (value) => gain.gain.value = value,
-      //         get: () => gain.gain.value,
+      //         get: function () {
+      //             return o.volumeValue;
+      //         },
+      //         set: function (value) {
+      //             o.volumeNode.gain.value = value;
+      //             o.volumeValue = value;
+      //         },
+      //         enumerable: true, configurable: true
       //     },
-      // }
+
+      //     //The pan node uses the high-efficiency stereo panner, if it's
+      //     //available. But, because this is a new addition to the
+      //     //WebAudio spec, it might not be available on all browsers.
+      //     //So the code checks for this and uses the older 3D panner
+      //     //if 2D isn't available.
+      //     pan: {
+      //         get: function () {
+      //             if (!actx.createStereoPanner) {
+      //                 return o.panValue;
+      //             } else {
+      //                 return o.panNode.pan.value;
+      //             }
+      //         },
+      //         set: function (value) {
+      //             if (!actx.createStereoPanner) {
+      //                 //Panner objects accept x, y and z coordinates for 3D
+      //                 //sound. However, because we're only doing 2D left/right
+      //                 //panning we're only interested in the x coordinate,
+      //                 //the first one. However, for a natural effect, the z
+      //                 //value also has to be set proportionately.
+      //                 var x = value,
+      //                     y = 0,
+      //                     z = 1 - Math.abs(x);
+      //                 o.panNode.setPosition(x, y, z);
+      //                 o.panValue = value;
+      //             } else {
+      //                 o.panNode.pan.value = value;
+      //             }
+      //         },
+      //         enumerable: true, configurable: true
+      //     }
+      // });
   }
 
   var util = {
     __proto__: null,
     env: env,
-    audio: audio,
-    Audio: Audio
+    audio: audio
   };
 
   //----------------------------------------------------------------------------------------------------

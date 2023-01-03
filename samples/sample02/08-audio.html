@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>sample02-scene</title>
+
+    <script src="../xnew.js"></script>
+    <style>
+        body { height: 100vh; margin: 0; }
+    </style>
+</head>
+
+<body>
+    <script>
+        xnew(({ node }) => {
+            node.nestElement({ tag: 'button', style: 'padding: 8px;' }, 'audio.mp3');
+
+            const audio = xutil.audio.load('audio.mp3');
+            node.on('click', () => {
+                audio.play();
+            })
+        });
+    </script>
+</body>
+</html>
