@@ -1,9 +1,9 @@
 
 //----------------------------------------------------------------------------------------------------
-// env 
+// device 
 //----------------------------------------------------------------------------------------------------
 
-export const env = (() => {
+export const device = (() => {
 
     return new class {
         isMobile() {
@@ -82,7 +82,7 @@ function Audio(context, path) {
             get: () => promise,
         }
     });
-    this.play = (offset = 0) => {
+    this.play = ({ offset = 0 }) => {
         if (this.isReady === false) return;
         if (soundNode) {
             soundNode.stop(0);
