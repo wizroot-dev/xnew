@@ -209,9 +209,9 @@ export const audio = (() => {
         reverse = false,             //If `reverse` is true the pitch will bend up
         randomValue = 0,         //A range, in Hz, within which to randomize the pitch
         dissonance = 0,          //A value in Hz. It creates 2 dissonant frequencies above and below the target pitch
-        echo = false,                //An array: [delayTimeInSeconds, feedbackTimeInSeconds, filterValueInHz]
-        reverb = false,              //An array: [durationInSeconds, decayRateInSeconds, reverse]
-        timeout = false,             //A number, in seconds, which is the maximum duration for sound effects
+        echo = null,                //An array: [delayTimeInSeconds, feedbackTimeInSeconds, filterValueInHz]
+        reverb = null,              //An array: [durationInSeconds, decayRateInSeconds, reverse]
+        timeout = 2,             //A number, in seconds, which is the maximum duration for sound effects
     }){
     
         //Create an oscillator, gain and pan nodes, and connect them
@@ -275,7 +275,7 @@ export const audio = (() => {
             //timeout of 2 seconds, which should be enough for most sound
             //effects. Override this in the `soundEffect` parameters if you
             //need a longer sound
-            node.stop(context.currentTime + timeout + 2);
+            node.stop(context.currentTime + wait + timeout);
         }
     
         function addReverb(volumeNode) {
