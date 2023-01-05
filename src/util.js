@@ -4,14 +4,13 @@
 //----------------------------------------------------------------------------------------------------
 
 export const device = (() => {
-
-    return new class {
-        isMobile() {
+    return {
+        isMobile: () => {
             return navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/);
-        }
-        hasTouch() {
+        },
+        hasTouch: () => {
             return window.ontouchstart !== undefined && navigator.maxTouchPoints > 0;
-        }
+        },
     };
 })();
 
@@ -24,26 +23,23 @@ export const audio = (() => {
     const context = new (window.AudioContext || window.webkitAudioContext);
     const map = new Map();
 
-    const audio = {};
-    Object.defineProperties(audio, {
-        fetch: {
-            value: (paths) => {
-                (typeof paths === 'string' ? [paths] : paths).forEach((path) => loadAudio(path));
-            },
-        },
-        make: {
-            value: (props) => {
-                return new Effect(props);
-            },
-        },
-        load: {
-            value: (path) => {
-                return new Audio(loadAudio(path));
-            },
-        },
-    });
-    return audio;
-    
+    return { fetch, create, load };
+
+    function create(){
+        return new Effect(props);
+    }
+    function load(path){
+        if (map.has(path)) {
+            return new Audio(loadAudio(path));
+        }
+    }
+    function fetch(paths) {
+        (Array.isArray(paths) ? paths : [paths]).forEach((path) => {
+            if (typeof path === 'string' && path !== '') {
+                map.set(path, map.has(path) ? map.get(path) : new AudioData(path));
+            }
+        });
+    }
     function loadAudio(path) {
         if (typeof path === 'string' && path !== '') {
             const data = map.has(path) ? map.get(path) : new AudioData(path);
@@ -52,16 +48,24 @@ export const audio = (() => {
         }
     }
 
+    function createAudioNode(name, { input = null, output = null } = {}) {
+        const node = context[`create${name}`]();
+        if (input) input.connect(node);
+        if (output) node.connect(output);
+        return node;
+    }
+
     function AudioData(path) {
-        this.audioBuffer = null;
+        this.buffer = null;
         this.promise = fetch(path)
             .then((response) => response.arrayBuffer())
             .then((response) => context.decodeAudioData(response))
-            .then((response) => this.audioBuffer = response)
+            .then((response) => this.buffer = response)
             .catch(() => {
                 console.warn(`"${path}" could not be loaded.`)
             });
     }
+
 
     function Audio(data) {
     
@@ -70,7 +74,7 @@ export const audio = (() => {
 
         Object.defineProperties(this, {
             isReady: {
-                value: () => data.audioBuffer ? true : false,
+                value: () => data.buffer ? true : false,
             },
             promise: {
                 get: () => data.promise,
@@ -112,50 +116,42 @@ export const audio = (() => {
 
             // sourceNode
             {
-                nodes.sourceNode = context.createBufferSource();
-                nodes.sourceNode.buffer = data.audioBuffer;
+                nodes.sourceNode = createAudioNode('BufferSource');
+                nodes.sourceNode.buffer = data.buffer;
                 nodes.sourceNode.playbackRate.value = 1;
             }
-
+            
             // sourceNode -> volumeNode
             {
-                nodes.volumeNode = context.createGain();
+                nodes.volumeNode = createAudioNode('Gain', { input: nodes.sourceNode });
                 nodes.volumeNode.gain.value = state.volume;
-                nodes.sourceNode.connect(nodes.volumeNode);
-            }
-
-            // sourceNode -> volumeNode -> panNode
-            {
-                nodes.panNode = context.createStereoPanner ? context.createStereoPanner() : context.createPanner();
-                nodes.panNode.pan.value = state.pan;
-                nodes.volumeNode.connect(nodes.panNode);
-            }
-
-            // sourceNode -> volumeNode -> panNode -> destination
-            {
-                nodes.panNode.connect(context.destination);
             }
             
+            // sourceNode -> volumeNode -> panNode -> destination
+            if (context.createStereoPanner){
+                nodes.panNode = createAudioNode('StereoPanner', { input: nodes.volumeNode, output: context.destination });
+                nodes.panNode.pan.value = state.pan;
+            } else {
+                nodes.panNode = createAudioNode('Panner', { input: nodes.volumeNode, output: context.destination });
+                nodes.panNode.setPosition(state.pan, 0, 1 - Math.abs(state.pan));
+            }
+
             // volumeNode -> convolverNode -> panNode
             if (reverb) {
-                nodes.convolverNode = context.createConvolver();
+                nodes.convolverNode = createAudioNode('Convolver', { input: nodes.volumeNode, output: nodes.panNode });
                 nodes.convolverNode.buffer = impulseResponse(reverb);
-                nodes.volumeNode.connect(nodes.convolverNode);
-                nodes.convolverNode.connect(nodes.panNode);
             }
 
             // volumeNode -> delayNode -> panNode
             // delayNode -> feedbackNode -> filterNode -> (loop)
             if (echo) {
+                nodes.delayNode = createAudioNode('Delay', { input: nodes.volumeNode, output: nodes.panNode });
                 nodes.delayNode = context.createDelay();
                 nodes.delayNode.delayTime.value = echo.delay / 1000;
-                nodes.volumeNode.connect(nodes.delayNode);
-                nodes.delayNode.connect(nodes.panNode);
                 
-                nodes.feedbackNode = context.createGain();
+                nodes.feedbackNode = createAudioNode('Gain', { input: nodes.delayNode, output: nodes.delayNode});
                 nodes.feedbackNode.gain.value = echo.feedback;
                 nodes.delayNode.connect(nodes.feedbackNode);
-
                 // if (echo.filter > 0) {
                 //     nodes.filterNode = context.createBiquadFilter();
                 //     nodes.filterNode.frequency.value = echo.filter;
@@ -165,7 +161,6 @@ export const audio = (() => {
                 //     nodes.feedbackNode.connect(nodes.delayNode);
                 // }
             }
-
             if (fadeIn) {
                 nodes.volumeNode.gain.value = 0;
                 this.fade(fadeIn, 1.0);
@@ -185,7 +180,7 @@ export const audio = (() => {
 
                 state.volume = nodes.volumeNode.gain.value;
                 nodes = { sourceNode: null, };
-                return (context.currentTime - state.start) % audioBuffer.duration;
+                return (context.currentTime - state.start) % data.buffer.duration;
             }
         };
 
@@ -198,7 +193,7 @@ export const audio = (() => {
     };
 
     function Effect({
-        frequencyValue = 200,      //The sound's fequency pitch in Hertz
+        frequencyValue = 200,    //The sound's fequency pitch in Hertz
         attack = 0,              //The time, in seconds, to fade the sound in
         decay = 1,               //The time, in seconds, to fade the sound out
         type = 'sine',                //waveform type: "sine", "triangle", "square", "sawtooth"
