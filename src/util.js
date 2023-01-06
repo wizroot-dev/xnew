@@ -199,8 +199,7 @@ export const audio = (() => {
         volume = 1,         //The sound's maximum volume
         pan = 0,            //The speaker pan. left: -1, middle: 0, right: 1
         wait = 0,                //The time, in seconds, to wait before playing the sound
-        pitchBend = 0,     //The number of Hz in which to bend the sound's pitch down
-        reverse = false,             //If `reverse` is true the pitch will bend up
+        pitchBend = null,     //The number of Hz in which to bend the sound's pitch down
         dissonance = 0,          //A value in Hz. It creates 2 dissonant frequencies above and below the target pitch
         echo = null,                //An array: [delayTimeInSeconds, feedbackTimeInSeconds, filterValueInHz]
         reverb = null,              //An array: [durationInSeconds, decayRateInSeconds, reverse]
@@ -223,55 +222,11 @@ export const audio = (() => {
             // }
             standardNode.fade(decay, 0, wait + attack);
 
-            if (pitchBend > 0) setPitchBend(oscillator);
-            if (dissonance > 0) addDissonance();
-        
-            //Play the sound
-            play(oscillator);
-        
-            //The `play` function
-            function play(node) {
-                node.start(context.currentTime + wait / 1000);
-        
-                node.stop(context.currentTime + (wait + timeout) / 1000);
+            if (pitchBend){
+                oscillatorNode.frequency.linearRampToValueAtTime(frequency, context.currentTime + wait / 1000);
+                oscillatorNode.frequency.linearRampToValueAtTime(frequency + pitchBend, context.currentTime +(wait + attack + decay) / 1000);
             }
-        
-            //The `pitchBend` function
-            function setPitchBend(oscillatorNode) {
-                //If `reverse` is true, make the note drop in frequency. Useful for
-                //shooting sounds
-        
-                //Get the frequency of the current oscillator
-                var frequency = oscillatorNode.frequency.value;
-        
-                //If `reverse` is true, make the sound drop in pitch
-                if (!reverse) {
-                    oscillatorNode.frequency.linearRampToValueAtTime(
-                        frequency,
-                        context.currentTime + wait
-                    );
-                    oscillatorNode.frequency.linearRampToValueAtTime(
-                        frequency - pitchBend,
-                        context.currentTime + wait + attack + decay
-                    );
-                }
-        
-                //If `reverse` is false, make the note rise in pitch. Useful for
-                //jumping sounds
-                else {
-                    oscillatorNode.frequency.linearRampToValueAtTime(
-                        frequency,
-                        context.currentTime + wait
-                    );
-                    oscillatorNode.frequency.linearRampToValueAtTime(
-                        frequency + pitchBend,
-                        context.currentTime + wait + attack + decay
-                    );
-                }
-            }
-        
-            //The `addDissonance` function
-            function addDissonance() {
+            if (dissonance > 0){
                 const d1 = context.createOscillator();
                 const d2 = context.createOscillator();
         
@@ -293,6 +248,15 @@ export const audio = (() => {
                 play(d2);
             }
         
+            //Play the sound
+            play(oscillator);
+        
+            //The `play` function
+            function play(node) {
+                node.start(context.currentTime + wait / 1000);
+        
+                node.stop(context.currentTime + (wait + timeout) / 1000);
+            }        
         } 
     }
     
