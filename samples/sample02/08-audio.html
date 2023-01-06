@@ -17,11 +17,28 @@
         xnew(({ node }) => {
             node.nestElement({ tag: 'button', style: 'padding: 8px;' }, 'audio.mp3');
 
-            const audio = xutil.audio.load('audio.mp3');
+            // const audio = xutil.audio.load('audio.mp3');
+            const audio = xutil.audio.create({
+                waveform: 'sawtooth',                //waveform type: "sine", "triangle", "square", "sawtooth"
+                frequency: 16,    //The sound's fequency pitch in Hertz
+                attack: 0,              //The time, in seconds, to fade the sound in
+                decay: 1000,               //The time, in seconds, to fade the sound out
+                volume: 1,         //The sound's maximum volume
+                pan: 0,            //The speaker pan. left: -1, middle: 0, right: 1
+                wait: 0,                //The time, in seconds, to wait before playing the sound
+                pitchBend: 0,     //The number of Hz in which to bend the sound's pitch down
+                reverse: false,             //If `reverse` is true the pitch will bend up
+                dissonance: 50,          //A value in Hz. It creates 2 dissonant frequencies above and below the target pitch
+                echo: null,                //An array: [delayTimeInSeconds, feedbackTimeInSeconds, filterValueInHz]
+                reverb: null,              //An array: [durationInSeconds, decayRateInSeconds, reverse]
+                timeout: 2,             //A number, in seconds, which is the maximum duration for sound effects
+            });
+          
             node.on('click', () => {
                 audio.play();
             })
         });
+
     </script>
 </body>
 </html>
