@@ -1,19 +1,24 @@
 //----------------------------------------------------------------------------------------------------
-// function xnew (parent, element, ...content)
-//
+// function xnew (parent, element, Component, props);
+// function xnew (parent, element, innerHTML);
+// 
+// - return
+//   - a new node: Node
+// 
 // - parent
-//     - node: object
+//   - a node set as parent: Node
 // 
 // - element
-//     1. attributes to create a html element: object
-//      (e.g. { tag: 'div', style: '' })
-//     2. an existing html element or window: object
-//      (e.g. document.querySelector('#hoge'))
+//   - attributes to create html element: object
+//     (e.g. { tag: 'div', style: '' })
+//   - an existing html element or window: HTMLElement or Window
+//     (e.g. document.querySelector('#hoge'))
 // 
-// - content
-//     a. component: function, +props: object
-//     b. innerHTML: string
+// - Component: function
 // 
+// - props: object
+// 
+// - innerHTML: string
 //----------------------------------------------------------------------------------------------------
 
 export function xnew(...args) {
@@ -81,8 +86,8 @@ export class Node {
             this.element = this._.base;
         }
 
-        // global data
-        this.global = this.parent?.global ?? {};
+        // shared data
+        this._.shared = this.parent?._.shared ?? {};
 
         // auto start
         this.start();
@@ -143,6 +148,10 @@ export class Node {
                 console.error(`xnew define error: "${key}" already exists.`);
             }
         });
+    }
+
+    get shared() {
+        return this._.shared;
     }
 
     get promise() {
