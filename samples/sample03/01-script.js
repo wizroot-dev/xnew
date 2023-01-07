@@ -1,11 +1,12 @@
 function main() {
-    xnew(() => {
+    xnew(({ node }) => {
         const screen = xnew(xn.Screen, { width: 400, height: 300 });
         
         const renderer = PIXI.autoDetectRenderer({ view: screen.canvas, width: screen.width, height: screen.height });
         const stage = new PIXI.Container();
 
         xnew(Input);
+        xnew(Background, { screen, stage });
         xnew(Title, { screen, stage });
 
         return {
@@ -17,7 +18,7 @@ function main() {
 }
 
 function Input({ node }) {
-    if (1 || xutil.device.isMobile()) {
+    if (xutil.device.isMobile()) {
         const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xn.AnalogStick, { size: 160 });
         stick.on('start move end', (event, ex) => {
             event.stopPropagation();
@@ -46,6 +47,39 @@ function Input({ node }) {
     }
 }
 
+function Background({ node, screen, stage }) {
+    const background = stage.addChild(new PIXI.Container());
+
+    for (let i = 0; i < 100; i++) xnew(Dot);
+
+    function Dot({ node, init = true }) {
+        const object = background.addChild(new PIXI.Container());
+        object.x = Math.random() * screen.width;
+        object.y = init ? Math.random() * screen.height : -10;
+
+        const velocity = Math.random() + 0.1;
+        const graphics = object.addChild(new PIXI.Graphics());
+        graphics.lineStyle(0);
+        graphics.beginFill(0xFFFFFF, 1);
+        graphics.drawCircle(0, 0, 1);
+        graphics.endFill();
+    
+        return {
+            update: () => {
+                object.y += velocity;
+                if (object.y > screen.height) {
+                    xnew(node.parent, Dot, { init: false });
+                    node.finalize();
+                }
+            },
+            finalize: () => {
+                background.removeChild(object);
+            },
+        };
+    }
+}
+
+
 function Title({ node, screen, stage }) {
     const text = new PIXI.Text('touch start', { fill: '#FFFFFF' });
     text.x = screen.width / 2;
@@ -55,7 +89,7 @@ function Title({ node, screen, stage }) {
 
     stage.addChild(text);
 
-    node.on('click', () => {
+    node.on('click keydown', () => {
         xnew(node.parent, GameMain, { screen, stage })
         node.finalize();
     });
@@ -79,11 +113,12 @@ function GameMain({ node, screen, stage }) {
     node.on('#gameover', () => {
         node.clearTimer(id);
         xnew(GameOver, { screen, scene });
-
-        node.on('click', () => {
-            xnew(node.parent, Title, { screen, stage })
-            node.finalize();
-        })
+        node.setTimer(1000, () => {
+            node.on('click keydown', () => {
+                xnew(node.parent, Title, { screen, stage })
+                node.finalize();
+            })
+        });
     });
 
     return {
@@ -103,7 +138,6 @@ function GameOver({ node, screen, scene }) {
     text.pivot.y = text.height / 2;
 
     scene.addChild(text);
-
     return {
         finalize: () => {
             scene.removeChild(text);
@@ -114,10 +148,12 @@ function GameOver({ node, screen, scene }) {
 function Player({ node, screen, scene }) {
     const object = new PIXI.Container();
     scene.addChild(object);
-    const sprite = new PIXI.Sprite();
-    object.addChild(sprite);
 
-    sprite.texture = new PIXI.Texture(PIXI.Texture.from('texture.png'), new PIXI.Rectangle(0, 0, 32, 32));
+    const texture = PIXI.Texture.from('01-texture.png');
+    const sprite = new PIXI.AnimatedSprite([new PIXI.Texture(texture, new PIXI.Rectangle(0, 0, 32, 32)), new PIXI.Texture(texture, new PIXI.Rectangle(32, 0, 32, 32))]);
+    object.addChild(sprite);
+    sprite.animationSpeed = 0.01;
+    sprite.play();
     sprite.anchor.set(0.5);
 
     object.x = screen.width / 2;
@@ -134,14 +170,14 @@ function Player({ node, screen, scene }) {
         update: () => {
             object.x += velocity.x * 4;
             object.y += velocity.y * 4;
-            object.x = Math.max(0, Math.min(screen.width, object.x));
-            object.y = Math.max(0, Math.min(screen.height, object.y));
+            object.x = Math.max(10, Math.min(screen.width - 10, object.x));
+            object.y = Math.max(10, Math.min(screen.height - 10, object.y));
 
             for (const enemy of xfind('enemy')) {
                 const dx = node.object.x - enemy.object.x;
                 const dy = node.object.y - enemy.object.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < 22) {
+                if (distance < 15) {
                     enemy.finalize();
                     node.die();
                 }
@@ -171,13 +207,16 @@ function Bullet({ node, screen, scene, position }) {
 
     const graphics = object.addChild(new PIXI.Graphics());
     graphics.lineStyle(0);
-    graphics.beginFill(0xDE3249, 1);
-    graphics.drawCircle(0, 0, 3);
+    graphics.beginFill(0x22FFFF, 1);
+    graphics.drawEllipse(0, 0, 2, 12);
     graphics.endFill();
 
     return {
+        start: () => {
+            seShot();
+        },
         update: () => {
-            object.y -= 10;
+            object.y -= 8;
             if (object.y < 0) {
                 node.finalize();
             }
@@ -204,7 +243,18 @@ function Enemy({ node, screen, scene }) {
 
     const object = scene.addChild(new PIXI.Container());
     const sprite = new PIXI.Sprite();
-    sprite.texture = new PIXI.Texture(PIXI.Texture.from('texture.png'), new PIXI.Rectangle(32, 0, 32, 32));
+    const texture = PIXI.Texture.from('01-texture.png');
+    const textures = [
+        new PIXI.Texture(texture, new PIXI.Rectangle(0, 32, 32, 32)),
+        new PIXI.Texture(texture, new PIXI.Rectangle(32, 32, 32, 32)),
+        new PIXI.Texture(texture, new PIXI.Rectangle(64, 32, 32, 32)),
+    ];
+    sprite.texture = textures[0];
+    let counter = 0;
+    node.setTimer(100, () => {
+        sprite.texture = textures[counter++ % 3];
+    }, true);
+
     sprite.anchor.set(0.5);
     object.addChild(sprite);
 
@@ -227,6 +277,7 @@ function Enemy({ node, screen, scene }) {
             object.y += velocity.y;
         },
         die: (value = 1) => {
+            seClash(value);
             const position = { x: object.x, y: object.y };
             for(let i = 0; i < 3; i++) {
                 xnew(node.parent, Star, { screen, scene, position, value });
@@ -248,7 +299,7 @@ function Star({ node, screen, scene, position, value = 1 }) {
     object.y = position.y;
 
     const sprite = new PIXI.Sprite();
-    sprite.texture = new PIXI.Texture(PIXI.Texture.from('texture.png'), new PIXI.Rectangle(64, 0, 32, 32));
+    sprite.texture = new PIXI.Texture(PIXI.Texture.from('01-texture.png'), new PIXI.Rectangle(0, 64, 32, 32));
     sprite.anchor.set(0.5);
     object.addChild(sprite);
 
@@ -283,7 +334,7 @@ function Star({ node, screen, scene, position, value = 1 }) {
 function ScoreUp({ node, screen, scene, position, value = 1 }) {
     const text = new PIXI.Text(`+ ${value}`, { fontSize: 16, fill: '#FFFF22' });
     text.x = position.x;
-    text.y = position.x;
+    text.y = position.y;
     text.pivot.x = text.width / 2;
     text.pivot.y = text.height / 2;
 
@@ -294,7 +345,7 @@ function ScoreUp({ node, screen, scene, position, value = 1 }) {
     let counter = 0;
     return {
         update: () => {
-            text.y = position.y - 30 * Math.exp(-counter / 20) * Math.abs(Math.sin(Math.PI * (counter * 10) / 180)); 
+            text.y = position.y - 50 * Math.exp(-counter / 20) * Math.abs(Math.sin(Math.PI * (counter * 10) / 180)); 
             counter++;
         },
         finalize: () => {
@@ -306,15 +357,39 @@ function ScoreUp({ node, screen, scene, position, value = 1 }) {
 function Score({ node, screen, scene }) {
     let score = 0;
 
-    const text = new PIXI.Text(`score ${score}`, { fontSize: 16, fill: '#FFFF22' });
-    text.x = screen.width;
-    text.y = 0;
-    text.pivot.x = text.width;
-    text.pivot.y = 0;
-    scene.addChild(text);
+    const scoreText = new PIXI.Text(`score ${score}`, { fontSize: 16, fill: '#FFFF22' });
+    scoreText.x = screen.width;
+    scoreText.y = 0;
+    scoreText.pivot.x = scoreText.width;
+    scoreText.pivot.y = 0;
+    scene.addChild(scoreText);
+
     node.on('#scoreup', (value) => {
-        text.text = `score ${score += value}`;
-        text.pivot.x = text.width;
+        scoreText.text = `score ${score += value}`;
+        scoreText.pivot.x = scoreText.width;
     });
 }
 
+// waveform 'sine', 'triangle', 'square', 'sawtooth'
+function soundEffect({ frequency, waveform = 'sine', volume = 0.2, atack = 0.0, decay = 0.2, pitchBelnd = 0, offset = 0.0 }) {
+    const oscillatorNode = new Tone.Oscillator(frequency, waveform);
+    const volumeNode = new Tone.Gain(0.0).toDestination();
+    oscillatorNode.connect(volumeNode);
+
+    const start = Tone.now() + offset;
+    volumeNode.gain.linearRampToValueAtTime(volume, start + atack);
+    volumeNode.gain.linearRampToValueAtTime(0.0, start + atack + decay);
+
+    oscillatorNode.frequency.linearRampToValueAtTime(Math.max(10, oscillatorNode.frequency.value + pitchBelnd), start + atack + decay);
+    oscillatorNode.start(start).stop(start + atack + decay);
+}
+
+function seShot() {
+    soundEffect({ frequency: 1500, waveform: 'triangle', volume: 0.1, decay: 0.2, pitchBelnd: -1000 });
+}
+function seClash(value) {
+    
+    soundEffect({ frequency: 580 + value, waveform: 'triangle', volume: 0.1, decay: 0.10, pitchBelnd: 0 });
+    soundEffect({ frequency: 1080 + value, waveform: 'triangle', volume: 0.07, decay: 0.20, pitchBelnd: 0, offset: 0.05 });
+    soundEffect({ frequency: 1280 + value, waveform: 'triangle', volume: 0.05, decay: 0.20, pitchBelnd: 0, offset: 0.1 });
+}
