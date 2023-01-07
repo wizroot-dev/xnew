@@ -3,58 +3,79 @@ Simple javascript library for component based programing.
 Useful for creating apps and games with dynamic scenes.
 
 ## Setup
-- via cdn  
+### via cdn  
   
 ```
 <script src="https://unpkg.com/xnew@0.2.x/dist/xnew.js"></script>
 ```
 
-- via npm
+### via npm
 ```
 npm install xnew
 ```
 ```
 import { xnew } from 'xnew'
 ```
-## Features
-Before describing the specifications, let's first look the features with some samples.
 
-### Component based  
-The following sample creates a button element that count clicks. Component based description like this, is easy to manage and extend programs because each function can be managed independently.
+## Basic usage
+`xnew` create a object called 'node'.
 
 ```
-const button = xnew(MyButton, { text: 'click me!' });
+const node = xnew(Component, props);
 
-// ...
-
-// component
-function MyButton({ node, text }) {
-    node.nestElement({ tag: 'button', style: 'padding: 8px;' }, text);
-    let counter = 0;
-    node.on('click', () => {
-        node.element.textContent = ++counter + ' clicked!';
-    })
+function Component({ node, ...props }) {
+    // ...
 }
 ```
+```
+xnew(({ node }) => {
+    // ...
+});
+```
+As shown above, setting a function as an argument of `xnew`, some useful features are available.
 
-### Collaboration with rendering libraries
-Works well with rendering libraries like three.js and pixi.js. The following samples creates a animating object using three.js and pixi.js.
+## Example
+Before describing the specifications, let's look at a example.
+Here, we will create a dynamic scene with a rendering library.
 
 ![three](./images/three.gif)
 
+#### index.html
 ```
-// create canvas and setup three.js
-xnew(() => {
-    const width = 800, height = 450;
-    const canvas = xnew({ tag: 'canvas', width, height });
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src="https://unpkg.com/xnew@0.2.x/dist/xnew.js"></script>
+    <script src="https://unpkg.com/three@0.142.x/build/three.min.js"></script>
+    <script src="script.js"></script>
+    <style>
+        body { height: 100vh; margin: 0; }
+    </style>
+</head>
+  
+<body>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            xnew(Main);
+        });
+    </script>
+</body>
+</html>
+```
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas.element });
+#### script.js
+```
+function Main({ node }) {
+    // create a screen (xn.Screen defines a canvas in it)
+    const screen = xnew(xn.Screen, { width: 800, height: 450 });
 
-    const camera = new THREE.PerspectiveCamera(45, width / height);
+    const renderer = new THREE.WebGLRenderer({ canvas: screen.canvas });
+    const camera = new THREE.PerspectiveCamera(45, screen.width / screen.height);
     camera.position.set(0, 0, +100);
 
     const scene = new THREE.Scene();
 
+    // create a cube
     xnew(MyCube, { scene });
 
     return {
@@ -62,12 +83,12 @@ xnew(() => {
             renderer.render(scene, camera);
         },
     };
-});
+}
 ```
 
 ```
-// create a cube and animate
-function MyCube({ scene }) {
+// create a cube and update
+function MyCube({ node, scene }) {
     const geometry = new THREE.BoxGeometry(40, 40, 40);
     const material = new THREE.MeshNormalMaterial();
     const object = new THREE.Mesh(geometry, material);
@@ -82,79 +103,44 @@ function MyCube({ scene }) {
         },
     };
 }
-
 ```
 
-![pixi](./images/pixi.gif)
-```
-// create canvas and setup pixi.js
-xnew(() => {
-    const width = 800, height = 450;
-    const canvas = xnew({ tag: 'canvas', width, height });
-
-    const renderer = PIXI.autoDetectRenderer({ view: canvas.element, width, height });
-    const scene = new PIXI.Container();
-    scene.x = width / 2;
-    scene.y = height / 2;
-    
-    xnew(MyBox, { scene });
-
-    return {
-        update: () => {
-            renderer.render(scene)
-        },
-    };
-});
-```
-
-```
-// create a box and animate
-function MyBox({ scene }) {
-    const object = scene.addChild(new PIXI.Container());
-    const graphics = object.addChild(new PIXI.Graphics());
-    graphics.beginFill(0xEA1E63);
-    graphics.drawRect(-80, -80, 160, 160);
-    graphics.endFill();
-    
-    return {
-        update: () => {
-            object.rotation += 0.01;
-        },
-        finalize: () => {
-            scene.removeChild(object);
-        },
-    };
-}
-```
-
+In the above example, we describe the 3d Cube object as a separate component. Component based description like this, is easy to manage and extend programs because each function can be managed independently.
 
 ## Specification
 
 ### Overview of `xnew`
-`xnew` create a object, we call it 'node'. 
-
 ```
-function xnew (parent, element, ...content)
+function xnew (parent, element, Component, props);
+function xnew (parent, element, innerHTML);
+
+- return
+  - a new node: Node
 
 - parent
-    - node: object
+  - a node set as parent: Node
 
 - element
-    - attributes to create a html element: object
-     (e.g. { tag: 'div', style: '' })
-    - an existing html element or window: object
-     (e.g. document.querySelector('#hoge'))
+  - attributes to create html element: object
+    (e.g. { tag: 'div', style: '' })
+  - an existing html element or window: HTMLElement or Window
+    (e.g. document.querySelector('#hoge'))
 
-- content
-    - component: function, +props: object
-    - innerHTML: string
+- Component: function
+
+- props: object
+
+- innerHTML: string
 ```
 
-As shown above, xnew accepts arguments (`parent`, `element`, `content`).  
 
-- **`parent`** is a parameter that is set as the parent node. In many cases, it is omitted, and set automatically. It is set when you intentionally want to bind to another node (described later).
-- **`element`** is a parameter for html element to associate with new node. If you omit this parameter, new node's element inherits the parent node's element. If there is no parent node, it inherits `document.body` element.
-- **`content`** is a parameter that set the behavior of the node. Component function and its properties, or innerHTML.  
+As shown above, xnew accepts some arguments (`parent`, `element`, `Component`, `props`, `innerHTML`). Any of the arguments may be omitted.
+
+- **`parent`**: In many cases, this parameter is omitted, and set automatically. It is set when you intentionally want to bind to another node (described later).
+- **`element`**: a parameter for html element to associate with the new node. If you omit this parameter, the new node's element inherits the parent node's element. If there is no parent node, it inherits `document.body` element.
+- **`Component`**: this is a function that describe the features of the new node.
+- **`props`**: this is a parameter for Component function.
+- **`innerHTML`**: this is used when you want to simply set a new html.
 
 ### Basic Patterns
 #### create a new node
@@ -209,12 +195,10 @@ function Component({ tag: 'div', id: 'hoge' }, { node, data }) {
 
 #### create a new node and associate with an existing element
 ```
-// <div hoge>
-
 xnew(document.querySelector('#hoge'), Component, { data: 1 });
 
 function Component({ node, data }) {
-    // node.element: an existing element(id=hoge)
+    // node.element: selected element(id=hoge)
     // ...
 }
 ```
@@ -360,25 +344,21 @@ node.emit('myevent', data);
 ### Timer
 By using a timer, you can set a function to be executed after a specified time.
 ```
-const deley = 1000; // 1000 [ms]
-
-// run only once
 xnew(({ node }) =>  {
-    const id = node.setTimer(delay, () => {
+    // call only once (1000ms delay)
+    const id1 = node.setTimer(1000, () => {
         // ...
     });
-});
 
-// run repeatedly
-xnew(({ node }) =>  {
-    const id = node.setTimer(delay, () => {
+    // call repeatedly (1000ms interval)
+    const id2 = node.setTimer(1000, () => {
         // ...
     }, true);
 });
 
 ```
-- Timers can be canceled by calling `clearTimer(id)` using the id.
-- Timers are automatically canceled when the node's `finalize` method is called.
+- Timers can be canceled by calling `node.clearTimer(id)` using the id.
+- Timers are automatically canceled when `node.finalize()` is called.
 
 ### Find node
 If you set a key for a node, you can find the node.
@@ -431,3 +411,17 @@ function Scene2 ({ node }) {
 
 ```
 - If you don't set the parent node, Scene2 node will also be deleted when `node.finalize()` is called because Scene2 node is a child of Scene1 node.
+
+### Shared data
+You can use `node.shared` when you want to share data among nodes connected by parent-child relationship.
+
+
+```
+xnew(({ node }) =>  {
+    node.shared.hoge = 1;
+
+    xnew(({ node }) =>  {
+        node.shared.hoge; // 1
+    });
+});
+```

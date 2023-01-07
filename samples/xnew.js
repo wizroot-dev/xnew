@@ -5,21 +5,26 @@
 })(this, (function (exports) { 'use strict';
 
   //----------------------------------------------------------------------------------------------------
-  // function xnew (parent, element, ...content)
-  //
+  // function xnew (parent, element, Component, props);
+  // function xnew (parent, element, innerHTML);
+  // 
+  // - return
+  //   - a new node: Node
+  // 
   // - parent
-  //     - node: object
+  //   - a node set as parent: Node
   // 
   // - element
-  //     1. attributes to create a html element: object
-  //      (e.g. { tag: 'div', style: '' })
-  //     2. an existing html element or window: object
-  //      (e.g. document.querySelector('#hoge'))
+  //   - attributes to create html element: object
+  //     (e.g. { tag: 'div', style: '' })
+  //   - an existing html element or window: HTMLElement or Window
+  //     (e.g. document.querySelector('#hoge'))
   // 
-  // - content
-  //     a. component: function, +props: object
-  //     b. innerHTML: string
+  // - Component: function
   // 
+  // - props: object
+  // 
+  // - innerHTML: string
   //----------------------------------------------------------------------------------------------------
 
   function xnew(...args) {
@@ -87,8 +92,8 @@
               this.element = this._.base;
           }
 
-          // global data
-          this.global = this.parent?.global ?? {};
+          // shared data
+          this._.shared = this.parent?._.shared ?? {};
 
           // auto start
           this.start();
@@ -149,6 +154,10 @@
                   console.error(`xnew define error: "${key}" already exists.`);
               }
           });
+      }
+
+      get shared() {
+          return this._.shared;
       }
 
       get promise() {
@@ -469,109 +478,30 @@
   }
 
   //----------------------------------------------------------------------------------------------------
-  // env 
+  // device 
   //----------------------------------------------------------------------------------------------------
 
-  const env = (() => {
-
-      return new class {
-          isMobile() {
+  const device = (() => {
+      return {
+          isMobile: () => {
               return navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/);
-          }
-          hasTouch() {
+          },
+          hasTouch: () => {
               return window.ontouchstart !== undefined && navigator.maxTouchPoints > 0;
-          }
+          },
       };
   })();
-
-
-
-
-  //----------------------------------------------------------------------------------------------------
-  // audio 
-  //----------------------------------------------------------------------------------------------------
-
-  const audio = (() => {
-      const context = new (window.AudioContext || window.webkitAudioContext);
-      const map = new Map();
-
-      return new class {
-          fetch(paths) {
-
-          }
-          make() {
-      
-          }
-          load(path) {
-              if (map.has(path)) {
-                  return map.get(path);
-              } else {
-                  fetch(url)
-                      .then((response) => response.arrayBuffer())
-                      .then((response) => context.decodeAudioData(response))
-                      .then((response) => response);
-              }
-          }
-      };
-  })();
-
-
-  function Audio({ node, urls }) {
-      // let source = null;
-      // let buffer;
-
-      // const gain = _AudioContext().createGain();
-      
-      // const map = new Map();
-      // urls.keys().forEach((key) => {
-      //     const value = { promise: null, buffer: null };
-
-      //     value.promise = fetch(urls[key])
-      //         .then((response) => response.arrayBuffer())
-      //         .then((response) => _AudioContext().decodeAudioData(response))
-      //         .then((response) => value.buffer = response);
-      //     map.set(key, value);
-      // });
-
-      // return {
-      //     promise: fetch(url)
-      //         .then((response) => response.arrayBuffer())
-      //         .then((response) => _AudioContext().decodeAudioData(response))
-      //         .then((response) => buffer = response),
-      //     play: () => {
-      //         if (buffer) {
-      //             node.pause();
-      //             source = _AudioContext().createBufferSource();
-      //             source.buffer = buffer;
-      //             source.connect(gain).connect(_AudioContext().destination);
-      //             source.start(0);
-      //         }
-      //     },
-      //     pause: () => {
-      //         if (source) {
-      //             source.stop();
-      //             source = null;
-      //         }
-      //     },
-      //     volume: {
-      //         set: (value) => gain.gain.value = value,
-      //         get: () => gain.gain.value,
-      //     },
-      // }
-  }
 
   var util = {
     __proto__: null,
-    env: env,
-    audio: audio,
-    Audio: Audio
+    device: device
   };
 
   //----------------------------------------------------------------------------------------------------
   // screen
   //----------------------------------------------------------------------------------------------------
 
-  function Screen({ node, width, height, objectFit = 'contain', pixelated = true }) {
+  function Screen({ node, width = 640, height = 480, objectFit = 'contain', pixelated = true }) {
       node.nestElement({ style: 'position: relative; width: 100%; height: 100%; overflow: hidden;' });
       node.nestElement({ style: 'position: absolute; inset: 0; margin: auto;' });
       node.nestElement({ style: 'position: relative; width: 100%; height: 100%;' });
@@ -709,9 +639,6 @@
       const draw = xnew(DrawEvent);
 
       draw.on('start move', (event, ex) => {
-          event.preventDefault();
-          event.stopPropagation();
-
           target.element.style.filter = 'brightness(90%)';
 
           const [x, y] = [ex.end.x - size / 2, ex.end.y - size / 2];
@@ -754,14 +681,14 @@
           if (state === 0) {
               state = 1;
               target.element.style.filter = 'brightness(90%)';
-              node.emit('down', event);
+              node.emit('down', event, { type: 'down' });
           }
       });
       win.on('touchend mouseup', (event) => {
           if (state === 1) {
               state = 0;
               target.element.style.filter = '';
-              node.emit('up', event);
+              node.emit('up', event, { type: 'up' });
           }
       });
   }

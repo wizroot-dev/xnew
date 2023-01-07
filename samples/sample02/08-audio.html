@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>sample02-scene</title>
+
+    <script src="../Tone.min.js"></script>
+    <script src="../xnew.js"></script>
+    <style>
+        body { height: 100vh; margin: 0; }
+    </style>
+</head>
+
+<body>
+    <script>
+        xnew(({ node }) => {
+            node.nestElement({ tag: 'button', style: 'padding: 8px;' }, 'sound effect');
+          
+            node.on('click', () => {
+                const oscillatorNode = new Tone.Oscillator(940, 'square');
+                const gainNode = new Tone.Gain(0.0).toDestination();
+                oscillatorNode.connect(gainNode);
+
+                const now = Tone.now();
+                gainNode.gain.linearRampToValueAtTime(1.0, now + 0.1);
+                gainNode.gain.linearRampToValueAtTime(0.0, now + 0.2);
+                oscillatorNode.frequency.linearRampToValueAtTime(oscillatorNode.frequency.value - 500, now + 0.1);
+                oscillatorNode.frequency.linearRampToValueAtTime(oscillatorNode.frequency.value + 500, now + 0.2);
+
+                oscillatorNode.start().stop(now + 0.2);
+            })
+        });
+
+    </script>
+</body>
+</html>

@@ -4,7 +4,7 @@ import { xnew } from './core';
 // screen
 //----------------------------------------------------------------------------------------------------
 
-export function Screen({ node, width, height, objectFit = 'contain', pixelated = true }) {
+export function Screen({ node, width = 640, height = 480, objectFit = 'contain', pixelated = true }) {
     node.nestElement({ style: 'position: relative; width: 100%; height: 100%; overflow: hidden;' });
     node.nestElement({ style: 'position: absolute; inset: 0; margin: auto;' });
     node.nestElement({ style: 'position: relative; width: 100%; height: 100%;' });
@@ -146,9 +146,6 @@ export function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8
     const draw = xnew(DrawEvent);
 
     draw.on('start move', (event, ex) => {
-        event.preventDefault();
-        event.stopPropagation();
-
         target.element.style.filter = 'brightness(90%)';
 
         const [x, y] = [ex.end.x - size / 2, ex.end.y - size / 2];
@@ -191,14 +188,14 @@ export function CircleButton({ node, size = 80, fill = '#FFF', fillOpacity = 0.8
         if (state === 0) {
             state = 1;
             target.element.style.filter = 'brightness(90%)';
-            node.emit('down', event);
+            node.emit('down', event, { type: 'down' });
         }
     });
     win.on('touchend mouseup', (event) => {
         if (state === 1) {
             state = 0;
             target.element.style.filter = '';
-            node.emit('up', event);
+            node.emit('up', event, { type: 'up' });
         }
     });
 }
