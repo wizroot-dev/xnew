@@ -25,17 +25,24 @@
             xnew(() => {
                 node.nestElement({ tag: 'button', style: 'padding: 8px;' }, 'sound effect');
                 node.on('click', () => {
+                    const nodes = xutil.audio.connect({
+                        oscillator: ['Oscillator', { type: 'triangle', frequency: 2000 }, 'gain'],
+                        gain: ['Gain', { gain: 0.1 }, 'destination'],
+                    });
+                    console.log(nodes);
+                    nodes.oscillator.start(xutil.audio.context.currentTime + 0);
+                    nodes.oscillator.stop(xutil.audio.context.currentTime + 2);
                     // waveform 'sine', 'triangle', 'square', 'sawtooth'
-                    const oscillatorNode = new Tone.Oscillator(frequency.value, 'square');
-                    const gainNode = new Tone.Gain(0.0).toDestination();
-                    oscillatorNode.connect(gainNode);
-                    const now = Tone.now();
-                    gainNode.gain.linearRampToValueAtTime(volume.value, now + atack.value);
-                    gainNode.gain.linearRampToValueAtTime(0.0, now + atack.value + decay.value);
-                    oscillatorNode.frequency.linearRampToValueAtTime(Math.max(10, oscillatorNode.frequency.value + pitchBend.value), now + atack.value + decay.value);
-                    // oscillatorNode.frequency.linearRampToValueAtTime(oscillatorNode.frequency.value + 500, now + 0.2);
+                    // const oscillatorNode = new Tone.Oscillator(frequency.value, 'square');
+                    // const gainNode = new Tone.Gain(0.0).toDestination();
+                    // oscillatorNode.connect(gainNode);
+                    // const now = Tone.now();
+                    // gainNode.gain.linearRampToValueAtTime(volume.value, now + atack.value);
+                    // gainNode.gain.linearRampToValueAtTime(0.0, now + atack.value + decay.value);
+                    // oscillatorNode.frequency.linearRampToValueAtTime(Math.max(10, oscillatorNode.frequency.value + pitchBend.value), now + atack.value + decay.value);
+                    // // oscillatorNode.frequency.linearRampToValueAtTime(oscillatorNode.frequency.value + 500, now + 0.2);
 
-                    oscillatorNode.start().stop(now + atack.value + decay.value);
+                    // oscillatorNode.start().stop(now + atack.value + decay.value);
                 })
             })
         });

@@ -152,7 +152,7 @@ function Player({ node, screen, scene }) {
     const texture = PIXI.Texture.from('01-texture.png');
     const sprite = new PIXI.AnimatedSprite([new PIXI.Texture(texture, new PIXI.Rectangle(0, 0, 32, 32)), new PIXI.Texture(texture, new PIXI.Rectangle(32, 0, 32, 32))]);
     object.addChild(sprite);
-    sprite.animationSpeed = 0.01;
+    sprite.animationSpeed = 0.1;
     sprite.play();
     sprite.anchor.set(0.5);
 
@@ -370,26 +370,34 @@ function Score({ node, screen, scene }) {
     });
 }
 
-// waveform 'sine', 'triangle', 'square', 'sawtooth'
-function soundEffect({ frequency, waveform = 'sine', volume = 0.2, atack = 0.0, decay = 0.2, pitchBelnd = 0, offset = 0.0 }) {
-    const oscillatorNode = new Tone.Oscillator(frequency, waveform);
+// type 'sine', 'triangle', 'square', 'sawtooth'
+function soundEffect({ frequency, type = 'triangle', volume = 0.2, atack = 0.0, decay = 0.2, pitchBelnd = [], offset = 0.0 }) {
     const volumeNode = new Tone.Gain(0.0).toDestination();
-    oscillatorNode.connect(volumeNode);
+    const oscillatorNode = new Tone.Oscillator(frequency, type).connect(volumeNode);
 
     const start = Tone.now() + offset;
     volumeNode.gain.linearRampToValueAtTime(volume, start + atack);
     volumeNode.gain.linearRampToValueAtTime(0.0, start + atack + decay);
 
-    oscillatorNode.frequency.linearRampToValueAtTime(Math.max(10, oscillatorNode.frequency.value + pitchBelnd), start + atack + decay);
+    pitchBelnd.forEach((value, i) => {
+        oscillatorNode.frequency.linearRampToValueAtTime(oscillatorNode.frequency.value + value, start + (atack + decay) * (i + 1) / pitchBelnd.length);
+    })
     oscillatorNode.start(start).stop(start + atack + decay);
+    oscillatorNode.onstop = () => {
+        setTimeout(() => {
+            volumeNode.dispose();
+            oscillatorNode.dispose();
+        });
+    }]
 }
 
 function seShot() {
-    soundEffect({ frequency: 1500, waveform: 'triangle', volume: 0.1, decay: 0.2, pitchBelnd: -1000 });
+    soundEffect({ frequency: 1000, type: 'triangle', volume: 0.1, atack: 0.0, decay: 0.4, pitchBelnd: [-200, -300, -600] });
+    soundEffect({ frequency: 1100, type: 'triangle', volume: 0.1, atack: 0.0, decay: 0.4, pitchBelnd: [-200, -300, -600] });
 }
 function seClash(value) {
     
-    soundEffect({ frequency: 580 + value, waveform: 'triangle', volume: 0.1, decay: 0.10, pitchBelnd: 0 });
-    soundEffect({ frequency: 1080 + value, waveform: 'triangle', volume: 0.07, decay: 0.20, pitchBelnd: 0, offset: 0.05 });
-    soundEffect({ frequency: 1280 + value, waveform: 'triangle', volume: 0.05, decay: 0.20, pitchBelnd: 0, offset: 0.1 });
+    soundEffect({ frequency: 580 + value, type: 'triangle', volume: 0.1, decay: 0.10, pitchBelnd: [] });
+    soundEffect({ frequency: 1080 + value, type: 'triangle', volume: 0.07, decay: 0.20, pitchBelnd: [], offset: 0.1 });
+    soundEffect({ frequency: 1280 + value, type: 'triangle', volume: 0.05, decay: 0.20, pitchBelnd: [], offset: 0.2 });
 }
