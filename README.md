@@ -32,7 +32,7 @@ xnew(({ node }) => {
     // ...
 });
 ```
-As shown above, setting a function as an argument of `xnew`, some useful features are available.
+The features of the node created by xnew is determined by the component function you set. In addition, as shown below, the node has some useful features by default.
 
 ## Example
 Before describing the specifications, let's look at a example.
@@ -94,6 +94,10 @@ function MyCube({ node, scene }) {
     const object = new THREE.Mesh(geometry, material);
     scene.add(object);
 
+    node.on('click', () => {
+        node.isStarted() ? node.stop() : node.start();
+    });
+
     return {
         update: () => {
             object.rotation.y += 0.01;
@@ -105,7 +109,7 @@ function MyCube({ node, scene }) {
 }
 ```
 
-In the above example, we describe the 3d Cube object as a separate component. Component based description like this, is easy to manage and extend programs because each function can be managed independently.
+In the above example, we describe code for 3d Cube object as a separate component. Component based description like this, is easy to manage and extend programs because each function can be managed independently.
 
 ## Specification
 
@@ -164,8 +168,7 @@ function Component({ node, data }) {
 }
 ```
 - You can also set any attributes.  
- e.g. `{ tag: 'div', type: 'aaa', className: 'bbb', style: 'color: #000;' }`
-- If you set element `class`, use `className` instead of the reserved word `class`.
+ e.g. `{ tag: 'div', type: 'aaa', class: 'bbb', style: 'color: #000;' }`
 - If you omit `tag` property, tag=`'div'` will be set automatically.
 
 #### create a new node and a new element (case 2)

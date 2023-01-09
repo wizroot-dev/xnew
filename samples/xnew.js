@@ -449,12 +449,10 @@
               } else if (isObject(value)){
                   Object.assign(element.style, value);
               }
-          } else if (key === 'className') {
+          } else if (key === 'class') {
               if (isValidString(value)) {
                   element.classList.add(...value.split(' '));
               }
-          } else if (key === 'class') {
-              console.warn('"class" is not available. Use "className" instead.');
           } else if (key !== 'tag') {
               element.setAttribute(key, value);
           }
@@ -492,9 +490,26 @@
       };
   })();
 
+
+  //----------------------------------------------------------------------------------------------------
+  // sound 
+  //----------------------------------------------------------------------------------------------------
+
+  const sound = (() => {
+      return {
+          create: () => {
+              return navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/);
+          },
+          hasTouch: () => {
+              return window.ontouchstart !== undefined && navigator.maxTouchPoints > 0;
+          },
+      };
+  })();
+
   var util = {
     __proto__: null,
-    device: device
+    device: device,
+    sound: sound
   };
 
   //----------------------------------------------------------------------------------------------------

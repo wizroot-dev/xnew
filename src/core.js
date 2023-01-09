@@ -443,12 +443,10 @@ function createElementWithAttributes(attributes, innerHTML = null) {
             } else if (isObject(value)){
                 Object.assign(element.style, value);
             }
-        } else if (key === 'className') {
+        } else if (key === 'class') {
             if (isValidString(value)) {
                 element.classList.add(...value.split(' '));
             }
-        } else if (key === 'class') {
-            console.warn('"class" is not available. Use "className" instead.')
         } else if (key !== 'tag') {
             element.setAttribute(key, value);
         }
