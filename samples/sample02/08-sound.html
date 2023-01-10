@@ -25,13 +25,19 @@
             xnew(() => {
                 node.nestElement({ tag: 'button', style: 'padding: 8px;' }, 'sound effect');
                 node.on('click', () => {
-                    const nodes = xutil.audio.connect({
-                        oscillator: ['Oscillator', { type: 'triangle', frequency: 2000 }, 'gain'],
-                        gain: ['Gain', { gain: 0.1 }, 'destination'],
+                    const effect = xutil.audio.create({
+                        frequency: 1000,
+                        envelope: { attack: 0.5, decay: 1.5 },
+                        pitchBend: [-100, -500, 200],
+                        reverb: { duration: 5, decay: 2 },
                     });
-                    console.log(nodes);
-                    nodes.oscillator.start(xutil.audio.context.currentTime + 0);
-                    nodes.oscillator.stop(xutil.audio.context.currentTime + 2);
+                    effect.play(0, 3);
+                    // const nodes = xutil.audio.connect({
+                    //     oscillator: ['Oscillator', { type: 'triangle', frequency: 2000 }, 'gain'],
+                    //     gain: ['Gain', { gain: 0.1 }, 'destination'],
+                    // });
+                    // nodes.oscillator.start(xutil.audio.context.currentTime + 0);
+                    // nodes.oscillator.stop(xutil.audio.context.currentTime + 2);
                     // waveform 'sine', 'triangle', 'square', 'sawtooth'
                     // const oscillatorNode = new Tone.Oscillator(frequency.value, 'square');
                     // const gainNode = new Tone.Gain(0.0).toDestination();

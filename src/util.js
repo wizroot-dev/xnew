@@ -20,15 +20,18 @@ export const device = (() => {
 //----------------------------------------------------------------------------------------------------
 
 export const audio = (() => {
-    const context = new (window.AudioContext || window.webkitAudioContext);
-
+    let _context = null;
     const audio = {};
+
     Object.defineProperties(audio, {
         context: {
-            get: () => context,
+            get: () => {
+                _context = _context ?? new (window.AudioContext || window.webkitAudioContext);
+                return _context;
+            }
         },
         connect: {
-            value: (list) => new connect(list),
+            value: (config) => new connect(config),
         },
         create: {
             value: (props) => new Effect(props),
@@ -39,16 +42,18 @@ export const audio = (() => {
     });
     return audio;
 
-    function connect(list) {
-        Object.keys(list).forEach((key) => {
-            const [type, props, ...to] = list[key];
-            if (context[`create${type}`]) {
-                const node = context[`create${type}`]();
+    function connect(config) {
+
+        Object.keys(config).forEach((key) => {
+            if (config[key] === null) return; 
+            const [type, props, ...to] = config[key];
+            if (audio.context[`create${type}`]) {
+                const node = audio.context[`create${type}`]();
                 this[key] = node;
 
                 Object.keys(props).forEach((name) => {
                     if (node[name] !== undefined) {
-                        if (node[name].value !== undefined) {
+                        if (node[name]?.value !== undefined) {
                             node[name].value = props[name];
                         } else {
                             node[name] = props[name];
@@ -58,27 +63,20 @@ export const audio = (() => {
             }
         });
 
-        Object.keys(list).forEach((key) => {
-            const [type, props, ...to] = list[key];
+        Object.keys(config).forEach((key) => {
+            if (config[key] === null) return; 
+            const [type, props, ...to] = config[key];
             if (this[key]) {
                 const node = this[key];
                 to.forEach((to) => {
                     if (this[to]) {
                         node.connect(this[to]);
                     } else if (to === 'destination') {
-                        console.log(audio.context.destination)+
                         node.connect(audio.context.destination);
                     }
                 });
             }
         });
-    }
-
-    function createAudioNode(name, input = null, output = null) {
-        const node = context[`create${name}`]();
-        if (input) input.connect(node);
-        if (output) node.connect(output);
-        return node;
     }
 
     function StandardNode({ volume = null, pan = null, echo = null, reverb = null } = {}) {
@@ -237,9 +235,43 @@ export const audio = (() => {
 
     };
 
-    function Effect2({ type = 'sine', frequency = 200, start = 0, stop = 1, envelope = null, pitchBend = [], echo = null, reverb = null }) {
+    function Effect({ type = 'sine', frequency = 200, volume = 1.0, pan = 0.0, envelope = null, pitchBend = [], echo = null, reverb = null }) {
+        const nodes = xutil.audio.connect({
+            oscillator: ['Oscillator', { type: 'triangle', frequency: 2000 }, 'volume', reverb ? 'convolver' : null],
+            volume: ['Gain', { gain: volume }, 'pan'],
+            pan: audio.context.createStereoPanner ? ['StereoPanner', { pan }, 'destination'] : ['Panner', { positionX: pan, positionZ: 1 - Math.abs(pan) }, 'destination'],
+            convolver: reverb ? ['Convolver', { buffer: impulseResponse(reverb) }, 'pan'] : null,
+            delay: echo ? ['Delay', { delayTime: echo.delay }, 'pan', 'feedback'] : null,
+            feedback: echo ? ['Gain', { gain: echo.feedback }, 'delay'] : null,
+        });
+        this.play = (wait = 0.0, duration = 0.5) => {
+            const start = audio.context.currentTime + wait;
+            nodes.oscillator.start(start);
+
+            if (envelope) {
+                envelope = Object.assign({ attack: 0.1, decay: 0.1, sustain: 0.0, release: 0.0 }, envelope);
+                duration = Math.max(duration, envelope.attack + envelope.decay);
+                nodes.volume.gain.value = 0.0;
+                nodes.volume.gain.linearRampToValueAtTime(0.0, start);
+                nodes.volume.gain.linearRampToValueAtTime(volume, start + envelope.attack);
+                nodes.volume.gain.linearRampToValueAtTime(volume * envelope.sustain, start + envelope.attack + envelope.decay);
+                
+                nodes.volume.gain.linearRampToValueAtTime(volume * envelope.sustain, start + duration);
+                nodes.volume.gain.linearRampToValueAtTime(0.0, start + duration + envelope.release);
+                nodes.oscillator.stop(start + duration + envelope.release);
+            } else {
+                nodes.volume.gain.value = volume;
+                nodes.oscillator.stop(start + duration);
+            }
+
+            nodes.oscillator.frequency.linearRampToValueAtTime(frequency, start);
+            pitchBend.forEach((pitch, i) => {
+                nodes.oscillator.frequency.linearRampToValueAtTime(Math.max(10, frequency + pitch), start + duration * (i + 1) / pitchBend.length);
+            })
+        }
     }
-    function Effect({
+
+    function Effect2({
         waveform = 'sine',  //waveform type: "sine", "triangle", "square", "sawtooth"
         frequency = 200,    //The sound's fequency pitch in Hertz
         attack = 0,              //The time, in seconds, to fade the sound in
@@ -309,8 +341,8 @@ export const audio = (() => {
     }
     
     function impulseResponse({ duration, decay }) {
-        const length = context.sampleRate * duration / 1000;
-        const impulse = context.createBuffer(2, length, context.sampleRate);
+        const length = audio.context.sampleRate * duration;
+        const impulse = audio.context.createBuffer(2, length, audio.context.sampleRate);
     
         const ch0 = impulse.getChannelData(0);
         const ch1 = impulse.getChannelData(1);

@@ -496,15 +496,18 @@
   //----------------------------------------------------------------------------------------------------
 
   const audio = (() => {
-      const context = new (window.AudioContext || window.webkitAudioContext);
-
+      let _context = null;
       const audio = {};
+
       Object.defineProperties(audio, {
           context: {
-              get: () => context,
+              get: () => {
+                  _context = _context ?? new (window.AudioContext || window.webkitAudioContext);
+                  return _context;
+              }
           },
           connect: {
-              value: (list) => new connect(list),
+              value: (config) => new connect(config),
           },
           create: {
               value: (props) => new Effect(props),
@@ -515,16 +518,18 @@
       });
       return audio;
 
-      function connect(list) {
-          Object.keys(list).forEach((key) => {
-              const [type, props, ...to] = list[key];
-              if (context[`create${type}`]) {
-                  const node = context[`create${type}`]();
+      function connect(config) {
+
+          Object.keys(config).forEach((key) => {
+              if (config[key] === null) return; 
+              const [type, props, ...to] = config[key];
+              if (audio.context[`create${type}`]) {
+                  const node = audio.context[`create${type}`]();
                   this[key] = node;
 
                   Object.keys(props).forEach((name) => {
                       if (node[name] !== undefined) {
-                          if (node[name].value !== undefined) {
+                          if (node[name]?.value !== undefined) {
                               node[name].value = props[name];
                           } else {
                               node[name] = props[name];
@@ -534,27 +539,20 @@
               }
           });
 
-          Object.keys(list).forEach((key) => {
-              const [type, props, ...to] = list[key];
+          Object.keys(config).forEach((key) => {
+              if (config[key] === null) return; 
+              const [type, props, ...to] = config[key];
               if (this[key]) {
                   const node = this[key];
                   to.forEach((to) => {
                       if (this[to]) {
                           node.connect(this[to]);
                       } else if (to === 'destination') {
-                          console.log(audio.context.destination)+
                           node.connect(audio.context.destination);
                       }
                   });
               }
           });
-      }
-
-      function createAudioNode(name, input = null, output = null) {
-          const node = context[`create${name}`]();
-          if (input) input.connect(node);
-          if (output) node.connect(output);
-          return node;
       }
 
       function StandardNode({ volume = null, pan = null, echo = null, reverb = null } = {}) {
@@ -711,78 +709,46 @@
               }
           };
 
-      }    function Effect({
-          waveform = 'sine',  //waveform type: "sine", "triangle", "square", "sawtooth"
-          frequency = 200,    //The sound's fequency pitch in Hertz
-          attack = 0,              //The time, in seconds, to fade the sound in
-          decay = 1,               //The time, in seconds, to fade the sound out
-          volume = 1,         //The sound's maximum volume
-          pan = 0,            //The speaker pan. left: -1, middle: 0, right: 1
-          wait = 0,                //The time, in seconds, to wait before playing the sound
-          pitchBend = null,     //The number of Hz in which to bend the sound's pitch down
-          dissonance = 0,          //A value in Hz. It creates 2 dissonant frequencies above and below the target pitch
-          echo = null,                //An array: [delayTimeInSeconds, feedbackTimeInSeconds, filterValueInHz]
-          reverb = null,              //An array: [durationInSeconds, decayRateInSeconds, reverse]
-          timeout = 2,             //A number, in seconds, which is the maximum duration for sound effects
-      }){
-          let standardNode = null;
-          this.play = () => {
+      }
+      function Effect({ type = 'sine', frequency = 200, volume = 1.0, pan = 0.0, envelope = null, pitchBend = [], echo = null, reverb = null }) {
+          const nodes = xutil.audio.connect({
+              oscillator: ['Oscillator', { type: 'triangle', frequency: 2000 }, 'volume', reverb ? 'convolver' : null],
+              volume: ['Gain', { gain: volume }, 'pan'],
+              pan: audio.context.createStereoPanner ? ['StereoPanner', { pan }, 'destination'] : ['Panner', { positionX: pan, positionZ: 1 - Math.abs(pan) }, 'destination'],
+              convolver: reverb ? ['Convolver', { buffer: impulseResponse(reverb) }, 'pan'] : null,
+              delay: echo ? ['Delay', { delayTime: echo.delay }, 'pan', 'feedback'] : null,
+              feedback: echo ? ['Gain', { gain: echo.feedback }, 'delay'] : null,
+          });
+          this.play = (wait = 0.0, duration = 0.5) => {
+              const start = audio.context.currentTime + wait;
+              nodes.oscillator.start(start);
 
-              const oscillator = context.createOscillator();
-              oscillator.type = waveform;
-              oscillator.frequency.value = frequency;
-          
-              standardNode = new StandardNode({ volume, pan, echo, reverb });
-              oscillator.connect(standardNode.input);
-              standardNode.output.connect(context.destination);
-
-              // if (attack) {
-              //     standardNode.volume = 0;
-              //     standardNode.fade(attack. volume, wait);
-              // }
-              standardNode.fade(decay, 0, wait + attack);
-
-              if (pitchBend){
-                  oscillatorNode.frequency.linearRampToValueAtTime(frequency, context.currentTime + wait / 1000);
-                  oscillatorNode.frequency.linearRampToValueAtTime(frequency + pitchBend, context.currentTime +(wait + attack + decay) / 1000);
+              if (envelope) {
+                  envelope = Object.assign({ attack: 0.1, decay: 0.1, sustain: 0.0, release: 0.0 }, envelope);
+                  duration = Math.max(duration, envelope.attack + envelope.decay);
+                  nodes.volume.gain.value = 0.0;
+                  nodes.volume.gain.linearRampToValueAtTime(0.0, start);
+                  nodes.volume.gain.linearRampToValueAtTime(volume, start + envelope.attack);
+                  nodes.volume.gain.linearRampToValueAtTime(volume * envelope.sustain, start + envelope.attack + envelope.decay);
+                  
+                  nodes.volume.gain.linearRampToValueAtTime(volume * envelope.sustain, start + duration);
+                  nodes.volume.gain.linearRampToValueAtTime(0.0, start + duration + envelope.release);
+                  nodes.oscillator.stop(start + duration + envelope.release);
+              } else {
+                  nodes.volume.gain.value = volume;
+                  nodes.oscillator.stop(start + duration);
               }
-              if (dissonance > 0){
-                  const d1 = context.createOscillator();
-                  const d2 = context.createOscillator();
-          
-                  //Connect the oscillators to the gain and destination nodes
-                  d1.connect(standardNode.input);
-                  d2.connect(standardNode.input);
-          
-                  //Set the waveform to "sawtooth" for a harsh effect
-                  d1.type = "sawtooth";
-                  d2.type = "sawtooth";
-          
-                  //Make the two oscillators play at frequencies above and
-                  //below the main sound's frequency. Use whatever value was
-                  //supplied by the `dissonance` argument
-                  d1.frequency.value = frequency + dissonance;
-                  d2.frequency.value = frequency - dissonance;
-          
-                  play(d1);
-                  play(d2);
-              }
-          
-              //Play the sound
-              play(oscillator);
-          
-              //The `play` function
-              function play(node) {
-                  node.start(context.currentTime + wait / 1000);
-          
-                  node.stop(context.currentTime + (wait + timeout) / 1000);
-              }        
-          }; 
+
+              nodes.oscillator.frequency.linearRampToValueAtTime(frequency, start);
+              pitchBend.forEach((pitch, i) => {
+                  nodes.oscillator.frequency.linearRampToValueAtTime(Math.max(10, frequency + pitch), start + duration * (i + 1) / pitchBend.length);
+              });
+          };
       }
       
       function impulseResponse({ duration, decay }) {
-          const length = context.sampleRate * duration / 1000;
-          const impulse = context.createBuffer(2, length, context.sampleRate);
+          const length = audio.context.sampleRate * duration;
+          const impulse = audio.context.createBuffer(2, length, audio.context.sampleRate);
       
           const ch0 = impulse.getChannelData(0);
           const ch1 = impulse.getChannelData(1);
