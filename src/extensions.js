@@ -64,16 +64,16 @@ export function DrawEvent({ node }) {
     const win = xnew(window);
 
     let [id, position1, position2] = [null, null, null];
-    base.on('mousedown touchstart', start);
+    base.on('mousedown touchstart', down);
 
-    function start(event) {
+    function down(event) {
         if (id !== null) return;
         const position = getPosition(event, id = getId(event));
 
         position1 = position;
         position2 = position;
 
-        const type = 'start';
+        const type = 'down';
         node.emit(type, event, { type, id, start: position1, end: position2, });
         win.on('mousemove touchmove', move);
         win.on('mouseup touchend', end);
@@ -90,7 +90,7 @@ export function DrawEvent({ node }) {
         const position = getPosition(event, id);
         position2 = position;
 
-        const type = 'end';
+        const type = 'up';
         node.emit(type, event, { type, id, start: position1, end: position2, });
         [id, position1, position2] = [null, null, null];
         win.off();
@@ -145,7 +145,7 @@ export function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8
 
     const draw = xnew(DrawEvent);
 
-    draw.on('start move', (event, ex) => {
+    draw.on('down move', (event, ex) => {
         target.element.style.filter = 'brightness(90%)';
 
         const [x, y] = [ex.end.x - size / 2, ex.end.y - size / 2];
@@ -156,7 +156,7 @@ export function AnalogStick({ node, size = 160, fill = '#FFF', fillOpacity = 0.8
         [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
     });
 
-    draw.on('end', (event, ex) => {
+    draw.on('up', (event, ex) => {
         target.element.style.filter = '';
 
         const vector = { x: 0, y: 0 };
