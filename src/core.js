@@ -43,7 +43,7 @@ export function xnew(...args) {
 //----------------------------------------------------------------------------------------------------
 
 export function xfind(key) {
-    const set = new Set;
+    const set = new Set();
     key.split(' ').forEach((k) => {
         if (k !== '' && Node.keyMap.has(k)) {
             Node.keyMap.get(k).forEach((node) => set.add(node));
@@ -67,13 +67,13 @@ export class Node {
         this._.resolve = false;
 
         this._.defines = {};
-        this._.listeners = new Map;
+        this._.listeners = new Map();
         
         // parent Node class
         this.parent = parent instanceof Node ? parent : Node.current.node;
 
         this.parent?._.children.add(this);
-        this._.children = new Set;
+        this._.children = new Set();
 
         if (element instanceof Element || element === window) {
             this._.base = element;
@@ -275,7 +275,7 @@ export class Node {
         };
         data.timeout = setTimeout(func, delay);
 
-        this._.timerIds = this._.timerIds ?? new Map;
+        this._.timerIds = this._.timerIds ?? new Map();
         this._.timerIds.set(data.id, data);
         return data.id;
     }
@@ -291,7 +291,7 @@ export class Node {
     // key
     //----------------------------------------------------------------------------------------------------
    
-    static keyMap = new Map;
+    static keyMap = new Map();
 
     set key(key) {
         // clear
@@ -306,7 +306,7 @@ export class Node {
 
         key.split(' ').forEach((k) => {
             if (isValidString(k) === true) {
-                if (Node.keyMap.has(k) === false) Node.keyMap.set(k, new Set);
+                if (Node.keyMap.has(k) === false) Node.keyMap.set(k, new Set());
                 if (Node.keyMap.get(k).has(this) === false) {
                     Node.keyMap.get(k).add(this);
                     this._.key += k + ' ';    
@@ -323,10 +323,10 @@ export class Node {
     // event method
     //----------------------------------------------------------------------------------------------------
    
-    static typeMap = new Map;
+    static typeMap = new Map();
  
     _subListener(type, listener) {
-        this._.listeners_wrapper = this._.listeners_wrapper ?? new Map;
+        this._.listeners_wrapper = this._.listeners_wrapper ?? new Map();
         if (this._.listeners_wrapper.has(listener) === false) {
             this._.listeners_wrapper.set(listener, (...args) => this.emit(type, ...args));
         }
@@ -344,12 +344,12 @@ export class Node {
     }
 
     _on(type, listener, options) {
-        if (this._.listeners.has(type) === false) this._.listeners.set(type, new Set);
+        if (this._.listeners.has(type) === false) this._.listeners.set(type, new Set());
         if (this._.listeners.get(type).has(listener) === false) {
             this._.listeners.get(type).add(listener);
             this.element?.addEventListener(type, this._subListener(type, listener), options ?? { passive: false });
         }
-        if (Node.typeMap.has(type) === false) Node.typeMap.set(type, new Set);
+        if (Node.typeMap.has(type) === false) Node.typeMap.set(type, new Set());
         if (Node.typeMap.get(type).has(this) === false) {
             Node.typeMap.get(type).add(this);
         }

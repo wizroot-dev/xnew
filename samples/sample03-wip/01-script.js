@@ -18,7 +18,7 @@ function main() {
 }
 
 function Input({ node }) {
-    if (xutil.device.isMobile() || 1) {
+    if (xutil.device.isMobile()) {
         const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xn.AnalogStick, { size: 160 });
         stick.on('down move up', (event, ex) => {
             node.emit('#move', { x: ex.vector.x * 0.7, y: ex.vector.y * 0.7 });
@@ -28,18 +28,18 @@ function Input({ node }) {
         button.on('down up', (event, ex) => {
             node.emit('#shot', ex.type === 'down');
         });
-    } else {
-        const keyState = {};
-        node.on('keydown keyup', (event) => {
-            keyState[event.key] = event.type === 'keydown';
+    } 
+    
+    const keyState = {};
+    node.on('keydown keyup', (event) => {
+        keyState[event.key] = event.type === 'keydown';
 
-            const x = (keyState['ArrowLeft'] ? -1 : 0) + (keyState['ArrowRight'] ? +1 : 0);
-            const y = (keyState['ArrowUp'] ? -1 : 0) + (keyState['ArrowDown'] ? +1 : 0);
+        const x = (keyState['ArrowLeft'] ? -1 : 0) + (keyState['ArrowRight'] ? +1 : 0);
+        const y = (keyState['ArrowUp'] ? -1 : 0) + (keyState['ArrowDown'] ? +1 : 0);
 
-            node.emit('#move', { x, y });
-            node.emit('#shot', keyState[' ']);
-        });
-    }
+        node.emit('#move', { x, y });
+        node.emit('#shot', keyState[' ']);
+    });
 }
 
 function Background({ node, screen, stage }) {
@@ -216,7 +216,7 @@ function Enemy({ node, screen, scene }) {
     object.y = 0;
 
     const v = Math.random() * 2 + 1;
-    const a = Math.random() * (Math.PI / 4) + Math.PI / 2;
+    const a = Math.random() * (Math.PI / 2) + Math.PI / 4;
     const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
 
     return {
@@ -258,7 +258,7 @@ function Star({ node, screen, scene, position, value = 1 }) {
     object.addChild(sprite);
 
     const v = Math.random() * 3;
-    const a = Math.random() * Math.PI;
+    const a = Math.random() * 2 * Math.PI;
     const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
 
     node.setTimer(800, () => node.finalize());

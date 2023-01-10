@@ -49,7 +49,7 @@
   //----------------------------------------------------------------------------------------------------
 
   function xfind(key) {
-      const set = new Set;
+      const set = new Set();
       key.split(' ').forEach((k) => {
           if (k !== '' && Node.keyMap.has(k)) {
               Node.keyMap.get(k).forEach((node) => set.add(node));
@@ -73,13 +73,13 @@
           this._.resolve = false;
 
           this._.defines = {};
-          this._.listeners = new Map;
+          this._.listeners = new Map();
           
           // parent Node class
           this.parent = parent instanceof Node ? parent : Node.current.node;
 
           this.parent?._.children.add(this);
-          this._.children = new Set;
+          this._.children = new Set();
 
           if (element instanceof Element || element === window) {
               this._.base = element;
@@ -281,7 +281,7 @@
           };
           data.timeout = setTimeout(func, delay);
 
-          this._.timerIds = this._.timerIds ?? new Map;
+          this._.timerIds = this._.timerIds ?? new Map();
           this._.timerIds.set(data.id, data);
           return data.id;
       }
@@ -297,7 +297,7 @@
       // key
       //----------------------------------------------------------------------------------------------------
      
-      static keyMap = new Map;
+      static keyMap = new Map();
 
       set key(key) {
           // clear
@@ -312,7 +312,7 @@
 
           key.split(' ').forEach((k) => {
               if (isValidString(k) === true) {
-                  if (Node.keyMap.has(k) === false) Node.keyMap.set(k, new Set);
+                  if (Node.keyMap.has(k) === false) Node.keyMap.set(k, new Set());
                   if (Node.keyMap.get(k).has(this) === false) {
                       Node.keyMap.get(k).add(this);
                       this._.key += k + ' ';    
@@ -329,10 +329,10 @@
       // event method
       //----------------------------------------------------------------------------------------------------
      
-      static typeMap = new Map;
+      static typeMap = new Map();
    
       _subListener(type, listener) {
-          this._.listeners_wrapper = this._.listeners_wrapper ?? new Map;
+          this._.listeners_wrapper = this._.listeners_wrapper ?? new Map();
           if (this._.listeners_wrapper.has(listener) === false) {
               this._.listeners_wrapper.set(listener, (...args) => this.emit(type, ...args));
           }
@@ -350,12 +350,12 @@
       }
 
       _on(type, listener, options) {
-          if (this._.listeners.has(type) === false) this._.listeners.set(type, new Set);
+          if (this._.listeners.has(type) === false) this._.listeners.set(type, new Set());
           if (this._.listeners.get(type).has(listener) === false) {
               this._.listeners.get(type).add(listener);
               this.element?.addEventListener(type, this._subListener(type, listener), options ?? { passive: false });
           }
-          if (Node.typeMap.has(type) === false) Node.typeMap.set(type, new Set);
+          if (Node.typeMap.has(type) === false) Node.typeMap.set(type, new Set());
           if (Node.typeMap.get(type).has(this) === false) {
               Node.typeMap.get(type).add(this);
           }
@@ -504,7 +504,9 @@
   //----------------------------------------------------------------------------------------------------
 
   const audio = (() => {
-      const context = new (window.AudioContext || window.webkitAudioContext);    const audio = {};
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const store = new Map();
+      const audio = {};
 
       Object.defineProperties(audio, {
           context: {
@@ -574,12 +576,17 @@
                   });
               store.set(path, data);
           }
+          console.log(path);
+          data.promise.then(() => console.log('loaded'));
+          let startTime = null;
+          let state = { volume: 1.0, };
 
-          let sourceNode = null;
-          let standardNode = null;
-          let startTime = 0;
-          let state = { volume: 1.0, pan: 0.0 };
-
+          const nodes = new Connect({
+              source: ['BufferSource', {}, 'volume'],
+              volume: ['Gain', { gain: 1.0 }, 'output'],
+              output: ['Gain', { }, 'destination'],
+          });
+          
           Object.defineProperties(this, {
               isReady: { value: () => data.buffer ? true : false, },
               promise: { get: () => data.promise, },
@@ -592,53 +599,31 @@
                       return standardNode ? standardNode.volume : state.volume;
                   },
               },
-              pan: {
-                  set: (value) => {
-                      state.pan = value;
-                      if (standardNode) standardNode.pan = value;
-                  },
-                  get: () => {
-                      return standardNode ? standardNode.pan : state.pan;
-                  },
-              },
+              
           });
       
-          this.play = ({ offset = 0, volume = null, pan = null, loop = false, fadeIn = null, echo = null, reverb = null } = {}) => {           
+          this.play = (wait = 0.0, duration = null, loop = false) => {           
               if (this.isReady() === false) return;
               this.pause();
 
               startTime = context.currentTime;
-              state.volume = volume ?? state.volume;
-              state.pan = pan ?? state.pan;
-
-              sourceNode = createAudioNode('BufferSource');
-              sourceNode.buffer = data.buffer;
-              sourceNode.playbackRate.value = 1;
+              //state.volume = volume ?? state.volume;
+              console.log(nodes);
+              nodes.source.buffer = data.buffer;
+              nodes.source.playbackRate.value = 1;
               
-              standardNode = new StandardNode({ volume: state.volume, pan: state.pan, echo, reverb });
-              sourceNode.connect(standardNode.input);
-              standardNode.output.connect(context.destination);
-
-              if (fadeIn) {
-                  standardNode.volume = 0;
-                  this.fade(fadeIn. state.volume);
-              }
-              sourceNode.loop = loop;
-              sourceNode.start(0, offset);
+              nodes.source.loop = loop;
+              nodes.source.start(audio.context.currentTime + wait);
           };
       
-          this.pause = ({ fadeOut = 0.0, } = {}) => {
-              if (sourceNode) {
-                  if (fadeOut) {
-                      standardNode.fade(fadeOut, 0);
-                  }
-                  setTimeout(() => sourceNode.stop(0), fadeOut);
+          this.pause = () => {
+              if (startTime !== null) {
+                  nodes.source.stop(audio.context.currentTime);
 
-                  state.volume = standardNode.volume;
+                  state.volume = nodes.volume.gain.value;
                   return (context.currentTime - startTime) % data.buffer.duration;
               }
           };
-
       }
       function SoundEffect({ type = 'sine', frequency = 200, volume = 1.0, envelope = null, pitchBend = [], reverb = null }) {
           if (envelope) {

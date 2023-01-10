@@ -26,7 +26,8 @@ export const device = (() => {
 //----------------------------------------------------------------------------------------------------
 
 export const audio = (() => {
-    const context = new (window.AudioContext || window.webkitAudioContext);;
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const store = new Map();
     const audio = {};
 
     Object.defineProperties(audio, {
@@ -97,12 +98,17 @@ export const audio = (() => {
                 });
             store.set(path, data);
         }
+        console.log(path);
+        data.promise.then(() => console.log('loaded'));
+        let startTime = null;
+        let state = { volume: 1.0, };
 
-        let sourceNode = null;
-        let standardNode = null;
-        let startTime = 0;
-        let state = { volume: 1.0, pan: 0.0 };
-
+        const nodes = new Connect({
+            source: ['BufferSource', {}, 'volume'],
+            volume: ['Gain', { gain: 1.0 }, 'output'],
+            output: ['Gain', { }, 'destination'],
+        });
+        
         Object.defineProperties(this, {
             isReady: { value: () => data.buffer ? true : false, },
             promise: { get: () => data.promise, },
@@ -115,53 +121,31 @@ export const audio = (() => {
                     return standardNode ? standardNode.volume : state.volume;
                 },
             },
-            pan: {
-                set: (value) => {
-                    state.pan = value;
-                    if (standardNode) standardNode.pan = value;
-                },
-                get: () => {
-                    return standardNode ? standardNode.pan : state.pan;
-                },
-            },
+            
         });
     
-        this.play = ({ offset = 0, volume = null, pan = null, loop = false, fadeIn = null, echo = null, reverb = null } = {}) => {           
+        this.play = (wait = 0.0, duration = null, loop = false) => {           
             if (this.isReady() === false) return;
             this.pause();
 
             startTime = context.currentTime;
-            state.volume = volume ?? state.volume;
-            state.pan = pan ?? state.pan;
-
-            sourceNode = createAudioNode('BufferSource');
-            sourceNode.buffer = data.buffer;
-            sourceNode.playbackRate.value = 1;
+            //state.volume = volume ?? state.volume;
+            console.log(nodes);
+            nodes.source.buffer = data.buffer;
+            nodes.source.playbackRate.value = 1;
             
-            standardNode = new StandardNode({ volume: state.volume, pan: state.pan, echo, reverb });
-            sourceNode.connect(standardNode.input);
-            standardNode.output.connect(context.destination)
-
-            if (fadeIn) {
-                standardNode.volume = 0;
-                this.fade(fadeIn. state.volume);
-            }
-            sourceNode.loop = loop;
-            sourceNode.start(0, offset);
+            nodes.source.loop = loop;
+            nodes.source.start(audio.context.currentTime + wait);
         };
     
-        this.pause = ({ fadeOut = 0.0, } = {}) => {
-            if (sourceNode) {
-                if (fadeOut) {
-                    standardNode.fade(fadeOut, 0);
-                }
-                setTimeout(() => sourceNode.stop(0), fadeOut);
+        this.pause = () => {
+            if (startTime !== null) {
+                nodes.source.stop(audio.context.currentTime);
 
-                state.volume = standardNode.volume;
+                state.volume = nodes.volume.gain.value;
                 return (context.currentTime - startTime) % data.buffer.duration;
             }
         };
-
     };
 
     function SoundEffect({ type = 'sine', frequency = 200, volume = 1.0, envelope = null, pitchBend = [], reverb = null }) {
