@@ -33,7 +33,7 @@
 
         function Input() {
             const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xn.AnalogStick, { size: 160 });
-            stick.on('start move end', (event, ex) => {
+            stick.on('down move up', (event, ex) => {
                 stick.emit('#move', ex);
             })
             const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xn.CircleButton);

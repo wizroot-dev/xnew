@@ -18,19 +18,14 @@ function main() {
 }
 
 function Input({ node }) {
-    if (xutil.device.isMobile()) {
+    if (xutil.device.isMobile() || 1) {
         const stick = xnew({ style: 'position: absolute; left: 0px; bottom: 0px; z-index: 10;' }, xn.AnalogStick, { size: 160 });
-        stick.on('start move end', (event, ex) => {
-            event.stopPropagation();
+        stick.on('down move up', (event, ex) => {
             node.emit('#move', { x: ex.vector.x * 0.7, y: ex.vector.y * 0.7 });
-        });
-        stick.on('click', (event) => {
-            event.stopPropagation();
         });
 
         const button = xnew({ style: 'position: absolute; right: 20px; bottom: 20px; z-index: 10;' }, xn.CircleButton);
         button.on('down up', (event, ex) => {
-            event.stopPropagation();
             node.emit('#shot', ex.type === 'down');
         });
     } else {
@@ -79,40 +74,29 @@ function Background({ node, screen, stage }) {
     }
 }
 
-
 function Title({ node, screen, stage }) {
-    const text = new PIXI.Text('touch start', { fill: '#FFFFFF' });
+    const text = bindObject(stage, new PIXI.Text('touch start', { fill: 0xFFFFFF }));
     text.x = screen.width / 2;
     text.y = screen.height / 2;
-    text.pivot.x = text.width / 2;
-    text.pivot.y = text.height / 2;
-
-    stage.addChild(text);
+    text.anchor.set(0.5);
 
     node.on('click keydown', () => {
         xnew(node.parent, GameMain, { screen, stage })
         node.finalize();
     });
-    return {
-        finalize: () => {
-            stage.removeChild(text);
-        }
-    }
 }
 
 function GameMain({ node, screen, stage }) {
-    const scene = stage.addChild(new PIXI.Container());
+    const scene = bindObject(stage, new PIXI.Container());
+    
     xnew(Score, { screen, scene });
-
-    const id = node.setTimer(500, () => {
-        xnew(Enemy, { screen, scene });
-    }, true);
-
     xnew(Player, { screen, scene });
+    const id = node.setTimer(500, () => xnew(Enemy, { screen, scene }), true);
 
     node.on('#gameover', () => {
         node.clearTimer(id);
         xnew(GameOver, { screen, scene });
+
         node.setTimer(1000, () => {
             node.on('click keydown', () => {
                 xnew(node.parent, Title, { screen, stage })
@@ -120,41 +104,29 @@ function GameMain({ node, screen, stage }) {
             })
         });
     });
-
-    return {
-        update: () => {
-        },
-        finalize: () => {
-            stage.removeChild(scene);
-        },
-    };
 }
 
 function GameOver({ node, screen, scene }) {
-    const text = new PIXI.Text('game over', { fill: '#FFFFFF' });
+    const text = bindObject(scene, new PIXI.Text('game over', { fill: 0xFFFFFF }));
     text.x = screen.width / 2;
     text.y = screen.height / 2;
-    text.pivot.x = text.width / 2;
-    text.pivot.y = text.height / 2;
-
-    scene.addChild(text);
-    return {
-        finalize: () => {
-            scene.removeChild(text);
-        }
-    }
+    text.anchor.set(0.5);
 }
 
 function Player({ node, screen, scene }) {
-    const object = new PIXI.Container();
-    scene.addChild(object);
+    const object = bindObject(scene, new PIXI.Container());
 
     const texture = PIXI.Texture.from('01-texture.png');
-    const sprite = new PIXI.AnimatedSprite([new PIXI.Texture(texture, new PIXI.Rectangle(0, 0, 32, 32)), new PIXI.Texture(texture, new PIXI.Rectangle(32, 0, 32, 32))]);
+    const textures = [
+        new PIXI.Texture(texture, new PIXI.Rectangle(0, 0, 32, 32)),
+        new PIXI.Texture(texture, new PIXI.Rectangle(32, 0, 32, 32)),
+    ];
+
+    const sprite = new PIXI.AnimatedSprite(textures);
     object.addChild(sprite);
     sprite.animationSpeed = 0.1;
-    sprite.play();
     sprite.anchor.set(0.5);
+    sprite.play();
 
     object.x = screen.width / 2;
     object.y = screen.height / 2;
@@ -174,12 +146,9 @@ function Player({ node, screen, scene }) {
             object.y = Math.max(10, Math.min(screen.height - 10, object.y));
 
             for (const enemy of xfind('enemy')) {
-                const dx = node.object.x - enemy.object.x;
-                const dy = node.object.y - enemy.object.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < 15) {
-                    enemy.finalize();
-                    node.die();
+                if (enemy.distance(object) < 15) {
+                    enemy.clash();
+                    node.finalize();
                 }
             }
             
@@ -189,19 +158,14 @@ function Player({ node, screen, scene }) {
                 node.setTimer(200, () => { stanby = true; });
             }
         },
-        die: () => {
-            node.emit('#gameover');
-            node.finalize();
-        },
         finalize: () => {
-            scene.removeChild(object);
+            node.emit('#gameover');
         },
-        object: { get: () => object },
     };
 }
 
 function Bullet({ node, screen, scene, position }) {
-    const object = scene.addChild(new PIXI.Container());
+    const object = bindObject(scene, new PIXI.Container());
     object.x = position.x;
     object.y = position.y;
 
@@ -211,90 +175,80 @@ function Bullet({ node, screen, scene, position }) {
     graphics.drawEllipse(0, 0, 2, 12);
     graphics.endFill();
 
+    soundShot();
+
     return {
-        start: () => {
-            seShot();
-        },
         update: () => {
             object.y -= 8;
-            if (object.y < 0) {
-                node.finalize();
-            }
+            if (object.y < 0) node.finalize();
+         
             for (const enemy of xfind('enemy')) {
-                const dx = node.object.x - enemy.object.x;
-                const dy = node.object.y - enemy.object.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < 15) {
-                    enemy.die();
+                if (enemy.distance(object) < 15) {
+                    enemy.clash();
                     node.finalize();
                     break;
                 }
             }
         },
-        finalize: () => {
-            scene.removeChild(object);
-        },
-        object: { get: () => object },
     };
 }
 
 function Enemy({ node, screen, scene }) {
     node.key = 'enemy';
 
-    const object = scene.addChild(new PIXI.Container());
-    const sprite = new PIXI.Sprite();
+    const object = bindObject(scene, new PIXI.Container());
+
     const texture = PIXI.Texture.from('01-texture.png');
     const textures = [
         new PIXI.Texture(texture, new PIXI.Rectangle(0, 32, 32, 32)),
         new PIXI.Texture(texture, new PIXI.Rectangle(32, 32, 32, 32)),
         new PIXI.Texture(texture, new PIXI.Rectangle(64, 32, 32, 32)),
     ];
-    sprite.texture = textures[0];
-    let counter = 0;
-    node.setTimer(100, () => {
-        sprite.texture = textures[counter++ % 3];
-    }, true);
 
-    sprite.anchor.set(0.5);
+    const sprite = new PIXI.AnimatedSprite(textures);
     object.addChild(sprite);
+    sprite.animationSpeed = 0.1;
+    sprite.anchor.set(0.5);
+    sprite.play();
 
     const x = Math.random() * screen.width;
     object.x = x
-    object.y = -10;
+    object.y = 0;
 
-    const a = Math.PI * (Math.random() * 90 + 45) / 180;
-    const v = (Math.random() * 2 + 1);
+    const v = Math.random() * 2 + 1;
+    const a = Math.random() * (Math.PI / 4) + Math.PI / 2;
     const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
 
     return {
         update: () => {
-            if (object.x < 10) velocity.x = Math.abs(velocity.x);
+            if (object.x < 10) velocity.x = +Math.abs(velocity.x);
             if (object.x >= screen.width - 10) velocity.x = -Math.abs(velocity.x);
-            if (object.y < 10) velocity.y = Math.abs(velocity.y);
+            if (object.y < 10) velocity.y = +Math.abs(velocity.y);
             if (object.y >= screen.height - 10) velocity.y = -Math.abs(velocity.y);
 
             object.x += velocity.x;
             object.y += velocity.y;
         },
-        die: (value = 1) => {
-            seClash(value);
+        clash: (value = 1) => {
+            soundClash(value);
             const position = { x: object.x, y: object.y };
-            for(let i = 0; i < 3; i++) {
+            for(let i = 0; i < 4; i++) {
                 xnew(node.parent, Star, { screen, scene, position, value });
             }
             xnew(node.parent, ScoreUp, { screen, scene, position, value });
 
             node.finalize();
         },
-        finalize: () => {
-            scene.removeChild(object);
+        distance: (target) => {
+            const dx = target.x - object.x;
+            const dy = target.y - object.y;
+            return distance = Math.sqrt(dx * dx + dy * dy);
         },
-        object: { get: () => object },
     };
 }
 
 function Star({ node, screen, scene, position, value = 1 }) {
-    const object = scene.addChild(new PIXI.Container());
+    const object = bindObject(scene, new PIXI.Container());
     object.x = position.x;
     object.y = position.y;
 
@@ -303,43 +257,37 @@ function Star({ node, screen, scene, position, value = 1 }) {
     sprite.anchor.set(0.5);
     object.addChild(sprite);
 
-    const vector = { x: (2 * Math.random() - 1) * 3, y: (2 * Math.random() - 1) * 3 };
+    const v = Math.random() * 3;
+    const a = Math.random() * Math.PI;
+    const velocity = { x: v * Math.cos(a), y: v * Math.sin(a)};
+
     node.setTimer(800, () => node.finalize());
 
     let counter = 0;
     return {
         update: () => {
-            object.x += vector.x;
-            object.y += vector.y;
+            object.x += velocity.x;
+            object.y += velocity.y;
             object.rotation = counter++ / 10;
 
             for (const enemy of xfind('enemy')) {
-                const dx = node.object.x - enemy.object.x;
-                const dy = node.object.y - enemy.object.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < 15) {
-                    enemy.die(value * 2);
+                if (enemy.distance(object) < 15) {
+                    enemy.clash(value * 2);
                     node.finalize();
                     break;
                 }
             }
         },
-        finalize: () => {
-            scene.removeChild(object);
-        },
-        object: { get: () => object },
     };
 }
 
 function ScoreUp({ node, screen, scene, position, value = 1 }) {
-    const text = new PIXI.Text(`+ ${value}`, { fontSize: 16, fill: '#FFFF22' });
+    const text = bindObject(scene, new PIXI.Text(`+ ${value}`, { fontSize: 16, fill: '#FFFF22' }));
     text.x = position.x;
     text.y = position.y;
-    text.pivot.x = text.width / 2;
-    text.pivot.y = text.height / 2;
+    text.anchor.set(0.5);
 
     node.emit('#scoreup', value);
-    scene.addChild(text);
     node.setTimer(1000, () => node.finalize());
 
     let counter = 0;
@@ -348,56 +296,38 @@ function ScoreUp({ node, screen, scene, position, value = 1 }) {
             text.y = position.y - 50 * Math.exp(-counter / 20) * Math.abs(Math.sin(Math.PI * (counter * 10) / 180)); 
             counter++;
         },
-        finalize: () => {
-            scene.removeChild(text);
-        }
     }
 }
 
 function Score({ node, screen, scene }) {
-    let score = 0;
+    let sum = 0;
 
-    const scoreText = new PIXI.Text(`score ${score}`, { fontSize: 16, fill: '#FFFF22' });
-    scoreText.x = screen.width;
-    scoreText.y = 0;
-    scoreText.pivot.x = scoreText.width;
-    scoreText.pivot.y = 0;
-    scene.addChild(scoreText);
+    const score = bindObject(scene, new PIXI.Text(`score ${sum}`, { fontSize: 16, fill: '#FFFF22' }));
+    score.x = screen.width;
+    score.y = 0;
+    score.anchor.set(1.0, 0.0);
 
     node.on('#scoreup', (value) => {
-        scoreText.text = `score ${score += value}`;
-        scoreText.pivot.x = scoreText.width;
+        score.text = `score ${sum += value}`;
     });
 }
 
-// type 'sine', 'triangle', 'square', 'sawtooth'
-function soundEffect({ frequency, type = 'triangle', volume = 0.2, atack = 0.0, decay = 0.2, pitchBelnd = [], offset = 0.0 }) {
-    const volumeNode = new Tone.Gain(0.0).toDestination();
-    const oscillatorNode = new Tone.Oscillator(frequency, type).connect(volumeNode);
-
-    const start = Tone.now() + offset;
-    volumeNode.gain.linearRampToValueAtTime(volume, start + atack);
-    volumeNode.gain.linearRampToValueAtTime(0.0, start + atack + decay);
-
-    pitchBelnd.forEach((value, i) => {
-        oscillatorNode.frequency.linearRampToValueAtTime(oscillatorNode.frequency.value + value, start + (atack + decay) * (i + 1) / pitchBelnd.length);
-    })
-    oscillatorNode.start(start).stop(start + atack + decay);
-    oscillatorNode.onstop = () => {
-        setTimeout(() => {
-            volumeNode.dispose();
-            oscillatorNode.dispose();
-        });
-    }]
+function soundShot() {
+    xutil.audio.create({ frequency: 1000, type: 'square', volume: 0.1, envelope: { attack: 0.1, decay: 0.1, sustain: 0.1, release: 0.3 }, pitchBend: [-1000] }).play(0.0, 0.3);
+}
+function soundClash(value) {
+    xutil.audio.create({ frequency:  700 + value, type: 'triangle', volume: 0.10, envelope: { attack: 0.0, decay: 0.1, sustain: 0.1, release: 0.1 } }).play(0.0, 0);
+    xutil.audio.create({ frequency:  900 + value, type: 'triangle', volume: 0.07, envelope: { attack: 0.0, decay: 0.1, sustain: 0.1, release: 0.1 } }).play(0.1, 0);
+    xutil.audio.create({ frequency: 1100 + value, type: 'triangle', volume: 0.05, envelope: { attack: 0.0, decay: 0.1, sustain: 0.1, release: 0.1 } }).play(0.2, 0);
 }
 
-function seShot() {
-    soundEffect({ frequency: 1000, type: 'triangle', volume: 0.1, atack: 0.0, decay: 0.4, pitchBelnd: [-200, -300, -600] });
-    soundEffect({ frequency: 1100, type: 'triangle', volume: 0.1, atack: 0.0, decay: 0.4, pitchBelnd: [-200, -300, -600] });
-}
-function seClash(value) {
-    
-    soundEffect({ frequency: 580 + value, type: 'triangle', volume: 0.1, decay: 0.10, pitchBelnd: [] });
-    soundEffect({ frequency: 1080 + value, type: 'triangle', volume: 0.07, decay: 0.20, pitchBelnd: [], offset: 0.1 });
-    soundEffect({ frequency: 1280 + value, type: 'triangle', volume: 0.05, decay: 0.20, pitchBelnd: [], offset: 0.2 });
+function bindObject(parent, object) {
+    parent.addChild(object);
+
+    xnew(() => {
+        return {
+            finalize: () => parent.removeChild(object)
+        }
+    });
+    return object;
 }

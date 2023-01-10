@@ -80,7 +80,7 @@ export class Node {
             this.element = this._.base;
         } else if (isObject(element)) {
             this._.base = this.parent ? this.parent.element : document.body;
-            this.element = this._.base.appendChild(createElementWithAttributes(element));
+            this.element = createElementWithAttributes(this._.base, element);
         } else {
             this._.base = this.parent ? this.parent.element : document.body;
             this.element = this._.base;
@@ -250,7 +250,7 @@ export class Node {
   
     nestElement(attributes, inner) {
         if (this._.phase === 'initialize') {
-            this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
+            this.element = createElementWithAttributes(this.element, attributes, inner);
         }
     }
 
@@ -385,7 +385,7 @@ export class Node {
     }
 
     emit(type, ...args) {
-        if (this._.phase === 'finalize') return;
+        // if (this._.phase === 'finalize') return;
 
         if (isValidString(type) === true) {
             if (type[0] === '#') {
@@ -425,7 +425,7 @@ export class Node {
     }
 }
 
-function createElementWithAttributes(attributes, innerHTML = null) {
+function createElementWithAttributes(parent, attributes, innerHTML = null) {
 
     const element = (() => {
         if (attributes.tag == 'svg') {
@@ -434,7 +434,9 @@ function createElementWithAttributes(attributes, innerHTML = null) {
             return document.createElement(attributes.tag ?? 'div');
         }
     })();
-    
+    if (parent) {
+        parent.appendChild(element);
+    }
     Object.keys(attributes).forEach((key) => {
         const value = attributes[key];
         if (key === 'style') {

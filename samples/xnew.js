@@ -86,7 +86,7 @@
               this.element = this._.base;
           } else if (isObject(element)) {
               this._.base = this.parent ? this.parent.element : document.body;
-              this.element = this._.base.appendChild(createElementWithAttributes(element));
+              this.element = createElementWithAttributes(this._.base, element);
           } else {
               this._.base = this.parent ? this.parent.element : document.body;
               this.element = this._.base;
@@ -256,7 +256,7 @@
     
       nestElement(attributes, inner) {
           if (this._.phase === 'initialize') {
-              this.element = this.element.appendChild(createElementWithAttributes(attributes, inner));
+              this.element = createElementWithAttributes(this.element, attributes, inner);
           }
       }
 
@@ -391,7 +391,7 @@
       }
 
       emit(type, ...args) {
-          if (this._.phase === 'finalize') return;
+          // if (this._.phase === 'finalize') return;
 
           if (isValidString(type) === true) {
               if (type[0] === '#') {
@@ -431,7 +431,7 @@
       }
   }
 
-  function createElementWithAttributes(attributes, innerHTML = null) {
+  function createElementWithAttributes(parent, attributes, innerHTML = null) {
 
       const element = (() => {
           if (attributes.tag == 'svg') {
@@ -440,7 +440,9 @@
               return document.createElement(attributes.tag ?? 'div');
           }
       })();
-      
+      if (parent) {
+          parent.appendChild(element);
+      }
       Object.keys(attributes).forEach((key) => {
           const value = attributes[key];
           if (key === 'style') {
@@ -480,37 +482,36 @@
   //----------------------------------------------------------------------------------------------------
 
   const device = (() => {
-      return {
-          isMobile: () => {
-              return navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/);
+      const device = {};
+      Object.defineProperties(device, {
+          isMobile: {
+              value: () => {
+                  return navigator.userAgent.match(/iPhone|iPad|Android.+Mobile/);
+              }
           },
-          hasTouch: () => {
-              return window.ontouchstart !== undefined && navigator.maxTouchPoints > 0;
+          hasTouch: {
+              value: () => {
+                  return window.ontouchstart !== undefined && navigator.maxTouchPoints > 0;
+              }
           },
-      };
+      });
+      return device;
   })();
 
 
   //----------------------------------------------------------------------------------------------------
-  // sound 
+  // audio 
   //----------------------------------------------------------------------------------------------------
 
   const audio = (() => {
-      let _context = null;
-      const audio = {};
+      const context = new (window.AudioContext || window.webkitAudioContext);    const audio = {};
 
       Object.defineProperties(audio, {
           context: {
-              get: () => {
-                  _context = _context ?? new (window.AudioContext || window.webkitAudioContext);
-                  return _context;
-              }
-          },
-          connect: {
-              value: (config) => new connect(config),
+              get: () => context,
           },
           create: {
-              value: (props) => new Effect(props),
+              value: (props) => new SoundEffect(props),
           },
           load: {
               value: (path) => new Music(path),
@@ -518,113 +519,42 @@
       });
       return audio;
 
-      function connect(config) {
+      function Connect(config) {
 
           Object.keys(config).forEach((key) => {
-              if (config[key] === null) return; 
-              const [type, props, ...to] = config[key];
-              if (audio.context[`create${type}`]) {
-                  const node = audio.context[`create${type}`]();
-                  this[key] = node;
+              if (Array.isArray(config[key])) {
+                  const [type, props, ...to] = config[key];
+                  if (audio.context[`create${type}`]) {
+                      const node = audio.context[`create${type}`]();
+                      this[key] = node;
 
-                  Object.keys(props).forEach((name) => {
-                      if (node[name] !== undefined) {
-                          if (node[name]?.value !== undefined) {
-                              node[name].value = props[name];
-                          } else {
-                              node[name] = props[name];
+                      Object.keys(props).forEach((name) => {
+                          if (node[name] !== undefined) {
+                              if (node[name]?.value !== undefined) {
+                                  node[name].value = props[name];
+                              } else {
+                                  node[name] = props[name];
+                              }
                           }
-                      }
-                  });
+                      });
+                  }
               }
           });
 
           Object.keys(config).forEach((key) => {
-              if (config[key] === null) return; 
-              const [type, props, ...to] = config[key];
-              if (this[key]) {
-                  const node = this[key];
-                  to.forEach((to) => {
-                      if (this[to]) {
-                          node.connect(this[to]);
-                      } else if (to === 'destination') {
-                          node.connect(audio.context.destination);
-                      }
-                  });
+              if (Array.isArray(config[key])) {
+                  const [type, props, ...to] = config[key];
+                  if (this[key]) {
+                      const node = this[key];
+                      to.forEach((to) => {
+                          if (this[to]) {
+                              node.connect(this[to]);
+                          } else if (to === 'destination') {
+                              node.connect(audio.context.destination);
+                          }
+                      });
+                  }
               }
-          });
-      }
-
-      function StandardNode({ volume = null, pan = null, echo = null, reverb = null } = {}) {
-          const nodes = {};
-
-          if (echo) {
-              echo = Object.assign({ delay: 300, feedback: 0.3 }, (typeof echo === 'object' && echo !== null) ? echo : {});
-          }
-          if (reverb) {
-              reverb = Object.assign({ duration: 2000, decay: 2 }, (typeof reverb === 'object' && reverb !== null) ? reverb : {});
-          }
-
-          // volumeNode
-          {
-              nodes.volumeNode = createAudioNode('Gain');
-              nodes.volumeNode.gain.value = volume;
-          }
-          
-          // volumeNode -> panNode -> destination
-          if (context.createStereoPanner){
-              nodes.panNode = createAudioNode('StereoPanner', nodes.volumeNode);
-              nodes.panNode.pan.value = pan;
-          } else {
-              nodes.panNode = createAudioNode('Panner', nodes.volumeNode);
-              nodes.panNode.setPosition(pan, 0, 1 - Math.abs(pan));
-          }
-
-          // volumeNode -> convolverNode -> panNode
-          if (reverb) {
-              nodes.convolverNode = createAudioNode('Convolver', nodes.volumeNode, nodes.panNode);
-              nodes.convolverNode.buffer = impulseResponse(reverb);
-          }
-
-          // volumeNode -> delayNode(feelbackNode ->filterNode ->delayNode) -> panNode
-          if (echo) {
-              nodes.delayNode = createAudioNode('Delay', nodes.volumeNode, nodes.panNode);
-              nodes.delayNode = context.createDelay();
-              nodes.delayNode.delayTime.value = echo.delay / 1000;
-              
-              nodes.feedbackNode = createAudioNode('Gain', nodes.delayNode, nodes.delayNode);
-              nodes.feedbackNode.gain.value = echo.feedback;
-              nodes.delayNode.connect(nodes.feedbackNode);
-              // if (echo.filter > 0) {
-              //     nodes.filterNode = context.createBiquadFilter();
-              //     nodes.filterNode.frequency.value = echo.filter;
-              //     nodes.feedbackNode.connect(nodes.filterNode);
-              //     nodes.filterNode.connect(nodes.delayNode);
-              // } else {
-              //     nodes.feedbackNode.connect(nodes.delayNode);
-              // }
-          }
-
-          this.fade = (duration, volume, wait = 0) => {
-              nodes.volumeNode.gain.linearRampToValueAtTime(nodes.volumeNode.gain.value, context.currentTime + wait / 1000);
-              nodes.volumeNode.gain.linearRampToValueAtTime(volume, context.currentTime + (wait + duration) / 1000);
-          };
-
-          Object.defineProperties(this, {
-              input: {
-                  get: () => nodes.volumeNode,
-              },
-              output: {
-                  get: () => nodes.panNode,
-              },
-              volume: {
-                  set: (value) => nodes.volumeNode.gain.value = value,
-                  get: () => nodes.volumeNode.gain.value,
-              },
-              pan: {
-                  set: (value) => nodes.panNode.pan.value = value,
-                  get: () => nodes.panNode.pan.value,
-              },
           });
       }
 
@@ -710,43 +640,61 @@
           };
 
       }
-      function Effect({ type = 'sine', frequency = 200, volume = 1.0, pan = 0.0, envelope = null, pitchBend = [], echo = null, reverb = null }) {
-          const nodes = xutil.audio.connect({
-              oscillator: ['Oscillator', { type: 'triangle', frequency: 2000 }, 'volume', reverb ? 'convolver' : null],
-              volume: ['Gain', { gain: volume }, 'pan'],
-              pan: audio.context.createStereoPanner ? ['StereoPanner', { pan }, 'destination'] : ['Panner', { positionX: pan, positionZ: 1 - Math.abs(pan) }, 'destination'],
-              convolver: reverb ? ['Convolver', { buffer: impulseResponse(reverb) }, 'pan'] : null,
-              delay: echo ? ['Delay', { delayTime: echo.delay }, 'pan', 'feedback'] : null,
-              feedback: echo ? ['Gain', { gain: echo.feedback }, 'delay'] : null,
+      function SoundEffect({ type = 'sine', frequency = 200, volume = 1.0, envelope = null, pitchBend = [], reverb = null }) {
+          if (envelope) {
+              envelope = Object.assign({ attack: 0.1, decay: 0.1, sustain: 0.0, release: 0.0 }, envelope);
+          }
+          if (reverb) {
+              reverb = Object.assign({ duration: 0.1, decay: 2.0, mix: 0.5 }, reverb);
+          }
+          const nodes = new Connect({
+              oscillator: ['Oscillator', { type, frequency }, 'volume'],
+              volume: ['Gain', { gain: volume }, 'gmain', 'convolver', 'delay'],
+              gmain: ['Gain', { gain: 1.0 * (reverb ? (1.0 - reverb.mix) : 1.0) }, 'output'],
+
+              output: ['Gain', { }, 'destination'],
+              convolver: reverb ? ['Convolver', { buffer: impulseResponse(reverb) }, 'greverb'] : null,
+              greverb: reverb ? ['Gain', { gain: reverb.mix }, 'output'] : null,
+              // delay: echo ? ['Delay', { delayTime: echo.delay }, 'output', 'feedback'] : null,
+              // feedback: echo ? ['Gain', { gain: echo.feedback }, 'delay'] : null,
           });
-          this.play = (wait = 0.0, duration = 0.5) => {
-              const start = audio.context.currentTime + wait;
-              nodes.oscillator.start(start);
 
-              if (envelope) {
-                  envelope = Object.assign({ attack: 0.1, decay: 0.1, sustain: 0.0, release: 0.0 }, envelope);
-                  duration = Math.max(duration, envelope.attack + envelope.decay);
-                  nodes.volume.gain.value = 0.0;
-                  nodes.volume.gain.linearRampToValueAtTime(0.0, start);
-                  nodes.volume.gain.linearRampToValueAtTime(volume, start + envelope.attack);
-                  nodes.volume.gain.linearRampToValueAtTime(volume * envelope.sustain, start + envelope.attack + envelope.decay);
-                  
-                  nodes.volume.gain.linearRampToValueAtTime(volume * envelope.sustain, start + duration);
-                  nodes.volume.gain.linearRampToValueAtTime(0.0, start + duration + envelope.release);
-                  nodes.oscillator.stop(start + duration + envelope.release);
-              } else {
-                  nodes.volume.gain.value = volume;
-                  nodes.oscillator.stop(start + duration);
-              }
-
-              nodes.oscillator.frequency.linearRampToValueAtTime(frequency, start);
-              pitchBend.forEach((pitch, i) => {
-                  nodes.oscillator.frequency.linearRampToValueAtTime(Math.max(10, frequency + pitch), start + duration * (i + 1) / pitchBend.length);
-              });
-          };
+          Object.defineProperties(this, {
+              play: {
+                  value: (wait = 0.0, duration = 0.0) => {
+                      const start = audio.context.currentTime + wait;
+                      let stop = null;
+                      if (envelope) {
+                          envelope = Object.assign({ attack: 0.1, decay: 0.1, sustain: 0.0, release: 0.0 }, envelope);
+                          duration = Math.max(duration, envelope.attack + envelope.decay);
+                          nodes.volume.gain.value = 0.0;
+                          nodes.volume.gain.linearRampToValueAtTime(0.0, start);
+                          nodes.volume.gain.linearRampToValueAtTime(volume, start + envelope.attack);
+                          nodes.volume.gain.linearRampToValueAtTime(volume * envelope.sustain, start + envelope.attack + envelope.decay);
+                          nodes.volume.gain.linearRampToValueAtTime(volume * envelope.sustain, start + duration);
+                          nodes.volume.gain.linearRampToValueAtTime(0.0, start + duration + envelope.release);
+                          stop = start + duration + envelope.release;
+                      } else {
+                          nodes.volume.gain.value = volume;
+                          stop = start + duration;
+                      }
+                      nodes.oscillator.start(start);
+                      nodes.oscillator.stop(stop);
+          
+                      nodes.oscillator.frequency.linearRampToValueAtTime(frequency, start);
+                      pitchBend.forEach((pitch, i) => {
+                          nodes.oscillator.frequency.linearRampToValueAtTime(Math.max(10, frequency + pitch), start + (stop - start) * (i + 1) / pitchBend.length);
+                      });
+                  },
+              },
+              volume: {
+                  set: (value) => nodes.volume.gain.value = value,
+                  get: () => nodes.volume.gain.value,
+              },
+          });
       }
-      
-      function impulseResponse({ duration, decay }) {
+
+      function impulseResponse({ duration, decay = 2.0 }) {
           const length = audio.context.sampleRate * duration;
           const impulse = audio.context.createBuffer(2, length, audio.context.sampleRate);
       
@@ -829,16 +777,16 @@
       const win = xnew(window);
 
       let [id, position1, position2] = [null, null, null];
-      base.on('mousedown touchstart', start);
+      base.on('mousedown touchstart', down);
 
-      function start(event) {
+      function down(event) {
           if (id !== null) return;
           const position = getPosition(event, id = getId(event));
 
           position1 = position;
           position2 = position;
 
-          const type = 'start';
+          const type = 'down';
           node.emit(type, event, { type, id, start: position1, end: position2, });
           win.on('mousemove touchmove', move);
           win.on('mouseup touchend', end);
@@ -853,7 +801,7 @@
           const position = getPosition(event, id);
           position2 = position;
 
-          const type = 'end';
+          const type = 'up';
           node.emit(type, event, { type, id, start: position1, end: position2, });
           [id, position1, position2] = [null, null, null];
           win.off();
@@ -907,7 +855,7 @@
 
       const draw = xnew(DrawEvent);
 
-      draw.on('start move', (event, ex) => {
+      draw.on('down move', (event, ex) => {
           target.element.style.filter = 'brightness(90%)';
 
           const [x, y] = [ex.end.x - size / 2, ex.end.y - size / 2];
@@ -918,7 +866,7 @@
           [target.element.style.left, target.element.style.top] = [vector.x * size / 4 + 'px', vector.y * size / 4 + 'px'];
       });
 
-      draw.on('end', (event, ex) => {
+      draw.on('up', (event, ex) => {
           target.element.style.filter = '';
 
           const vector = { x: 0, y: 0 };
