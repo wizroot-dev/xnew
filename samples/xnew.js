@@ -44,12 +44,12 @@
   // function xfind (key)
   //
   // - key
-  //     string (ex 'hoge', 'hoge fuga')
+  //   - string (ex 'hoge', 'hoge fuga')
   //
   //----------------------------------------------------------------------------------------------------
 
   function xfind(key) {
-      const set = new Set;
+      const set = new Set();
       key.split(' ').forEach((k) => {
           if (k !== '' && Node.keyMap.has(k)) {
               Node.keyMap.get(k).forEach((node) => set.add(node));
@@ -68,48 +68,52 @@
           // internal data
           this._ = {};
 
-          this._.phase = 'initialize';  // initialize ->[stop ->start ->...] ->stop ->finalize
+          // phase (null ->stopped ->started ->... ->stopped ->pre finalized ->finalized)
+          this._.phase = null;  
+
+
           this._.tostart = false;
           this._.resolve = false;
 
           this._.defines = {};
-          this._.listeners = new Map;
+          this._.listeners = new Map();
           
           // parent Node class
-          this.parent = parent instanceof Node ? parent : Node.current.node;
+          this._.parent = parent instanceof Node ? parent : Node.current.node;
 
-          this.parent?._.children.add(this);
-          this._.children = new Set;
+          this._.parent?._.children.add(this);
+          this._.children = new Set();
 
           if (element instanceof Element || element === window) {
               this._.base = element;
-              this.element = this._.base;
+              this._.element = this._.base;
           } else if (isObject(element)) {
-              this._.base = this.parent ? this.parent.element : document.body;
-              this.element = createElementWithAttributes(this._.base, element);
+              this._.base = this._.parent ? this._.parent._.element : document.body;
+              this._.element = createElementWithAttributes(this._.base, element);
           } else {
-              this._.base = this.parent ? this.parent.element : document.body;
-              this.element = this._.base;
+              this._.base = this._.parent ? this._.parent._.element : document.body;
+              this._.element = this._.base;
           }
 
           // shared data
-          this._.shared = this.parent?._.shared ?? {};
+          this._.shared = this._.parent?._.shared ?? {};
 
           // auto start
           this.start();
 
+          // content
           if (content.length > 0) {
               if (isFunction(content[0])) {
                   this._extend(content[0], isObject(content[1]) ? content[1] : {});
-              } else if (isValidString(content[0]) && this._.base !== this.element) {
-                  this.element.innerHTML = content[0];
+              } else if (isValidString(content[0]) && this._.base !== this._.element) {
+                  this._.element.innerHTML = content[0];
               }
           }
 
           this.promise.then((response) => { this._.resolve = true; return response; });
 
           // animation
-          if (this.parent === null) {
+          if (this._.parent === null) {
               this._.frameId = requestAnimationFrame(ticker.bind(this));
 
               function ticker() {
@@ -118,21 +122,17 @@
               }
           }
 
-          this._.phase = 'stop';
+          this._.phase = 'stopped';
       }
       
-      //----------------------------------------------------------------------------------------------------
-      // basic
-      //----------------------------------------------------------------------------------------------------
-      
-      _extend(component, props) {
-          const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }));
+      _extend(Component, props) {
+          const defines = Node.wrap(this, Component, Object.assign(props, { node: this }));
           if (isObject(defines) === false) return;
-
+          
           Object.keys(defines).forEach((key) => {
               if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key) || this[key] === undefined) {
                   const value = defines[key];
-                  if ((key === 'promise' && value instanceof Promise)){
+                  if ((key === 'promise' && value instanceof Promise)) {
                       this._.defines[key] = value;
                   } else if (['start', 'update', 'stop', 'finalize'].includes(key) && isFunction(value)) {
                       this._.defines[key] = value;
@@ -143,8 +143,7 @@
 
                       let descripters = {};
                       Object.keys(object).forEach((key) => {
-                          const value = object[key];
-                          descripters[key] = isFunction(value) ? (...args) => Node.wrap(this, value, ...args) : value;
+                          descripters[key] = isFunction(object[key]) ? (...args) => Node.wrap(this, object[key], ...args) : object[key];
                       });
                       Object.defineProperty(this, key, descripters);
                   } else {
@@ -154,6 +153,18 @@
                   console.error(`xnew define error: "${key}" already exists.`);
               }
           });
+      }
+
+      //----------------------------------------------------------------------------------------------------
+      // basic
+      //----------------------------------------------------------------------------------------------------
+      
+      get parent() {
+          return this._.parent;
+      }
+
+      get element() {
+          return this._.element;
       }
 
       get shared() {
@@ -173,81 +184,85 @@
       }
 
       _start() {
-          if (this._.phase === 'stop' && (this.parent === null || this.parent.isStarted()) && this._.resolve === true && this._.tostart === true) {
-              this._.phase = 'start';
+          if (this._.phase === 'stopped' && (this._.parent === null || this._.parent.isStarted()) && this._.resolve === true && this._.tostart === true) {
+              this._.phase = 'started';
               this._.children.forEach((node) => node._start());
               Node.wrap(this, this._.defines.start);
           }
       }
 
       _stop() {
-          if (this._.phase === 'start') {
-              this._.phase = 'stop';
+          if (this._.phase === 'started') {
+              this._.phase = 'stopped';
               this._.children.forEach((node) => node._stop());
               Node.wrap(this, this._.defines.stop);
           }
       }
 
       _update() {
-          if (this._.phase === 'finalize') return;
+          if (this._.phase === 'started' || this._.phase === 'stopped') {
+              this._.tostart === true ? this._start() : this._stop();
 
-          this._.tostart === true ? this._start() : this._stop();
+              this._.children.forEach((node) => node._update());
 
-          this._.children.forEach((node) => node._update());
-      
-          if (this._.phase === 'start') {
-              Node.wrap(this, this._.defines.update);
+              if (this._.phase === 'started') {
+                  Node.wrap(this, this._.defines.update);
+              }
           }
       }
 
       finalize() {
           this._stop();
-          if (this._.phase === 'finalize') return;
 
-          this._.phase = 'finalize';
-          [...this._.children].forEach((node) => node.finalize());
-          
-          Node.wrap(this, this._.defines.finalize);
+          if (this._.phase === 'stopped') {
+              this._.phase = 'pre finalized';
 
-          // key
-          this.key = '';
+              [...this._.children].forEach((node) => node.finalize());
+              
+              Node.wrap(this, this._.defines.finalize);
 
-          // event
-          this.off();
-          
-          // animation
-          if (this._.frameId) {
-              cancelAnimationFrame(this._.frameId);
-          }
-          
-          // timer
-          this._.timerIds?.forEach((id) => {
-              this.clearTimer(id);
-          });
+              // key
+              this.key = '';
 
-          // element
-          if (this.element !== null && this.element !== this._.base) {
-              let target = this.element;
-              while (target.parentElement !== null && target.parentElement !== this._.base) { target = target.parentElement; }
-              if (target.parentElement === this._.base) {
-                  this._.base.removeChild(target);
+              // event
+              this.off();
+              
+              // animation
+              if (this._.frameId) {
+                  cancelAnimationFrame(this._.frameId);
               }
+              
+              // timer
+              this._.timerIds?.forEach((id) => {
+                  this.clearTimer(id);
+              });
+
+              // element
+              if (this._.element !== null && this._.element !== this._.base) {
+                  let target = this._.element;
+                  while (target.parentElement !== null && target.parentElement !== this._.base) { target = target.parentElement; }
+                  if (target.parentElement === this._.base) {
+                      this._.base.removeChild(target);
+                  }
+              }
+              
+              // relation
+              this._.parent?._.children.delete(this);
+
+              this._.phase = 'finalized';
           }
-          
-          // relation
-          this.parent?._.children.delete(this);
       }
 
       isStarted() {
-          return this._.phase === 'start';
+          return this._.phase === 'started';
       }
 
       isStopped() {
-          return this._.phase !== 'start';
+          return this._.phase !== 'started';
       }
 
       isFinalized() {
-          return this._.phase === 'finalize';
+          return this._.phase === 'finalized';
       }
 
       //----------------------------------------------------------------------------------------------------
@@ -255,8 +270,8 @@
       //----------------------------------------------------------------------------------------------------        
     
       nestElement(attributes, inner) {
-          if (this._.phase === 'initialize') {
-              this.element = createElementWithAttributes(this.element, attributes, inner);
+          if (this._.phase === null) {
+              this._.element = createElementWithAttributes(this._.element, attributes, inner);
           }
       }
 
@@ -266,24 +281,24 @@
     
       static timerId = 0;
     
-      setTimer(delay, callback, repeat = false) {
-          if (this._.phase === 'finalize') return null;
+      setTimer(callback, delay = 1, repeat = false) {
+          if (this._.phase === null || this._.phase === 'stopped' || this._.phase === 'started') {
+              const data = { id: Node.timerId++, timeout: null };
 
-          const data = { id: Node.timerId++, timeout: null };
+              const func = () => {
+                  Node.wrap(this, callback);
+                  if (repeat) {
+                      data.timeout = setTimeout(func, delay);
+                  } else {
+                      this._.timerIds.delete(data.id);
+                  }
+              };
+              data.timeout = setTimeout(func, delay);
 
-          const func = () => {
-              Node.wrap(this, callback);
-              if (repeat) {
-                  data.timeout = setTimeout(func, delay);
-              } else {
-                  this._.timerIds.delete(data.id);
-              }
-          };
-          data.timeout = setTimeout(func, delay);
-
-          this._.timerIds = this._.timerIds ?? new Map;
-          this._.timerIds.set(data.id, data);
-          return data.id;
+              this._.timerIds = this._.timerIds ?? new Map();
+              this._.timerIds.set(data.id, data);
+              return data.id;
+          }
       }
 
       clearTimer(id) {
@@ -297,7 +312,7 @@
       // key
       //----------------------------------------------------------------------------------------------------
      
-      static keyMap = new Map;
+      static keyMap = new Map();
 
       set key(key) {
           // clear
@@ -312,7 +327,7 @@
 
           key.split(' ').forEach((k) => {
               if (isValidString(k) === true) {
-                  if (Node.keyMap.has(k) === false) Node.keyMap.set(k, new Set);
+                  if (Node.keyMap.has(k) === false) Node.keyMap.set(k, new Set());
                   if (Node.keyMap.get(k).has(this) === false) {
                       Node.keyMap.get(k).add(this);
                       this._.key += k + ' ';    
@@ -329,10 +344,10 @@
       // event method
       //----------------------------------------------------------------------------------------------------
      
-      static typeMap = new Map;
+      static typeMap = new Map();
    
       _subListener(type, listener) {
-          this._.listeners_wrapper = this._.listeners_wrapper ?? new Map;
+          this._.listeners_wrapper = this._.listeners_wrapper ?? new Map();
           if (this._.listeners_wrapper.has(listener) === false) {
               this._.listeners_wrapper.set(listener, (...args) => this.emit(type, ...args));
           }
@@ -350,12 +365,12 @@
       }
 
       _on(type, listener, options) {
-          if (this._.listeners.has(type) === false) this._.listeners.set(type, new Set);
+          if (this._.listeners.has(type) === false) this._.listeners.set(type, new Set());
           if (this._.listeners.get(type).has(listener) === false) {
               this._.listeners.get(type).add(listener);
-              this.element?.addEventListener(type, this._subListener(type, listener), options ?? { passive: false });
+              this._.element?.addEventListener(type, this._subListener(type, listener), options ?? { passive: false });
           }
-          if (Node.typeMap.has(type) === false) Node.typeMap.set(type, new Set);
+          if (Node.typeMap.has(type) === false) Node.typeMap.set(type, new Set());
           if (Node.typeMap.get(type).has(this) === false) {
               Node.typeMap.get(type).add(this);
           }
@@ -375,7 +390,7 @@
                   this._.listeners.get(type).delete(listener);
                   if (this._.listeners.get(type).size === 0) this._.listeners.delete(type);
 
-                  this.element?.removeEventListener(type, this._subListener(type, listener));
+                  this._.element?.removeEventListener(type, this._subListener(type, listener));
               }
           } else if (listener === null || listener === undefined) {
               if (this._.listeners.has(type) === true) {
@@ -391,15 +406,15 @@
       }
 
       emit(type, ...args) {
-          // if (this._.phase === 'finalize') return;
-
-          if (isValidString(type) === true) {
-              if (type[0] === '#') {
-                  if (Node.typeMap.has(type)) {
-                      Node.typeMap.get(type).forEach((node) => node._emit(type, ...args));
+          if (this._.phase !== 'finalized') {
+              if (isValidString(type) === true) {
+                  if (type[0] === '#') {
+                      if (Node.typeMap.has(type)) {
+                          Node.typeMap.get(type).forEach((node) => node._emit(type, ...args));
+                      }
+                  } else {
+                      this._emit(type, ...args);
                   }
-              } else {
-                  this._emit(type, ...args);
               }
           }
       }
@@ -504,14 +519,28 @@
   //----------------------------------------------------------------------------------------------------
 
   const audio = (() => {
-      const context = new (window.AudioContext || window.webkitAudioContext);    const audio = {};
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const store = new Map();
 
+      const keymap = {
+          'A0': 27.500, 'A#0': 29.135, 'B0': 30.868, 
+          'C1': 32.703, 'C#1': 34.648, 'D1': 36.708, 'D#1': 38.891, 'E1': 41.203, 'F1': 43.654, 'F#1': 46.249, 'G1': 48.999, 'G#1': 51.913, 'A1': 55.000, 'A#1': 58.270, 'B1': 61.735, 
+          'C2': 65.406, 'C#2': 69.296, 'D2': 73.416, 'D#2': 77.782, 'E2': 82.407, 'F2': 87.307, 'F#2': 92.499, 'G2': 97.999, 'G#2': 103.826, 'A2': 110.000, 'A#2': 116.541, 'B2': 123.471,
+          'C3': 130.813, 'C#3': 138.591, 'D3': 146.832, 'D#3': 155.563, 'E3': 164.814, 'F3': 174.614, 'F#3': 184.997, 'G3': 195.998, 'G#3': 207.652, 'A3': 220.000, 'A#3': 233.082, 'B3': 246.942,
+          'C4': 261.626, 'C#4': 277.183, 'D4': 293.665, 'D#4': 311.127, 'E4': 329.628, 'F4': 349.228, 'F#4': 369.994, 'G4': 391.995, 'G#4': 415.305, 'A4': 440.000, 'A#4': 466.164, 'B4': 493.883,
+          'C5': 523.251, 'C#5': 554.365, 'D5': 587.330, 'D#5': 622.254, 'E5': 659.255, 'F5': 698.456, 'F#5': 739.989, 'G5': 783.991, 'G#5': 830.609, 'A5': 880.000, 'A#5': 932.328, 'B5': 987.767,
+          'C6': 1046.502, 'C#6': 1108.731, 'D6': 1174.659, 'D#6': 1244.508, 'E6': 1318.510, 'F6': 1396.913, 'F#6': 1479.978, 'G6': 1567.982, 'G#6': 1661.219, 'A6': 1760.000, 'A#6': 1864.655, 'B6': 1975.533,
+          'C7': 2093.005, 'C#7': 2217.461, 'D7': 2349.318, 'D#7': 2489.016, 'E7': 2637.020, 'F7': 2793.826, 'F#7': 2959.955, 'G7': 3135.963, 'G#7': 3322.438, 'A7': 3520.000, 'A#7': 3729.310, 'B7': 3951.066,
+          'C8': 4186.009,
+      };
+
+      const audio = {};
       Object.defineProperties(audio, {
           context: {
               get: () => context,
           },
           create: {
-              value: (props) => new SoundEffect(props),
+              value: (props) => new synth(props),
           },
           load: {
               value: (path) => new Music(path),
@@ -575,72 +604,58 @@
               store.set(path, data);
           }
 
-          let sourceNode = null;
-          let standardNode = null;
-          let startTime = 0;
-          let state = { volume: 1.0, pan: 0.0 };
+          let startTime = null;
 
-          Object.defineProperties(this, {
-              isReady: { value: () => data.buffer ? true : false, },
-              promise: { get: () => data.promise, },
-              volume: {
-                  set: (value) => { 
-                      state.volume = value;
-                      if (standardNode) standardNode.volume = value;
-                  },
-                  get: () => {
-                      return standardNode ? standardNode.volume : state.volume;
-                  },
-              },
-              pan: {
-                  set: (value) => {
-                      state.pan = value;
-                      if (standardNode) standardNode.pan = value;
-                  },
-                  get: () => {
-                      return standardNode ? standardNode.pan : state.pan;
-                  },
-              },
+          const nodes = new Connect({
+              source: ['BufferSource', {}, 'volume'],
+              volume: ['Gain', { gain: 1.0 }, 'output'],
+              output: ['Gain', { }, 'destination'],
           });
-      
-          this.play = ({ offset = 0, volume = null, pan = null, loop = false, fadeIn = null, echo = null, reverb = null } = {}) => {           
-              if (this.isReady() === false) return;
-              this.pause();
+          
+          Object.defineProperties(this, {
+              isReady: {
+                  value: () => data.buffer ? true : false,
+              },
+              promise: {
+                  get: () => data.promise,
+              },
+              volume: {
+                  set: (value) => nodes.volume.gain.value = value,
+                  get: () => nodes.volume.gain.value,
+              },
+              loop: {
+                  set: (value) => nodes.source.loop = value,
+                  get: () => nodes.source.loop,
+              },
+              play: {
+                  value: () => {
+                      if (startTime === null) {
+                          if (this.isReady()) {
+                              startTime = context.currentTime;
+                              nodes.source.buffer = data.buffer;
+                              nodes.source.playbackRate.value = 1;
 
-              startTime = context.currentTime;
-              state.volume = volume ?? state.volume;
-              state.pan = pan ?? state.pan;
-
-              sourceNode = createAudioNode('BufferSource');
-              sourceNode.buffer = data.buffer;
-              sourceNode.playbackRate.value = 1;
-              
-              standardNode = new StandardNode({ volume: state.volume, pan: state.pan, echo, reverb });
-              sourceNode.connect(standardNode.input);
-              standardNode.output.connect(context.destination);
-
-              if (fadeIn) {
-                  standardNode.volume = 0;
-                  this.fade(fadeIn. state.volume);
+                              nodes.source.start(audio.context.currentTime);
+                          } else {
+                              data.promise.then(() => { 
+                                  this.play();
+                              });
+                          }
+                      }
+                  },
+              },
+              stop: {
+                  value: () => {
+                      if (startTime !== null) {
+                          nodes.source.stop(audio.context.currentTime);
+          
+                          return (context.currentTime - startTime) % data.buffer.duration;
+                      }
+                  },
               }
-              sourceNode.loop = loop;
-              sourceNode.start(0, offset);
-          };
-      
-          this.pause = ({ fadeOut = 0.0, } = {}) => {
-              if (sourceNode) {
-                  if (fadeOut) {
-                      standardNode.fade(fadeOut, 0);
-                  }
-                  setTimeout(() => sourceNode.stop(0), fadeOut);
-
-                  state.volume = standardNode.volume;
-                  return (context.currentTime - startTime) % data.buffer.duration;
-              }
-          };
-
+          });
       }
-      function SoundEffect({ type = 'sine', frequency = 200, volume = 1.0, envelope = null, pitchBend = [], reverb = null }) {
+      function synth({ waveform = 'sine', volume = 1.0, envelope = null, reverb = null }) {
           if (envelope) {
               envelope = Object.assign({ attack: 0.1, decay: 0.1, sustain: 0.0, release: 0.0 }, envelope);
           }
@@ -648,7 +663,7 @@
               reverb = Object.assign({ duration: 0.1, decay: 2.0, mix: 0.5 }, reverb);
           }
           const nodes = new Connect({
-              oscillator: ['Oscillator', { type, frequency }, 'volume'],
+              // oscillator: ['Oscillator', { type, frequency }, 'volume'],
               volume: ['Gain', { gain: volume }, 'gmain', 'convolver', 'delay'],
               gmain: ['Gain', { gain: 1.0 * (reverb ? (1.0 - reverb.mix) : 1.0) }, 'output'],
 
@@ -660,8 +675,14 @@
           });
 
           Object.defineProperties(this, {
-              play: {
-                  value: (wait = 0.0, duration = 0.0) => {
+              stroke: {
+                  value: (frequency, duration, { wait = 0.0, pitchBend = [] } = {}) => {
+                      frequency = isFinite(frequency) ? frequency : keymap[frequency];
+                      const oscillator = audio.context.createOscillator();
+                      oscillator.type = waveform;
+                      oscillator.frequency.value = frequency;
+                      oscillator.connect(nodes.volume);
+
                       const start = audio.context.currentTime + wait;
                       let stop = null;
                       if (envelope) {
@@ -678,12 +699,12 @@
                           nodes.volume.gain.value = volume;
                           stop = start + duration;
                       }
-                      nodes.oscillator.start(start);
-                      nodes.oscillator.stop(stop);
+                      oscillator.start(start);
+                      oscillator.stop(stop);
           
-                      nodes.oscillator.frequency.linearRampToValueAtTime(frequency, start);
+                      oscillator.frequency.linearRampToValueAtTime(frequency, start);
                       pitchBend.forEach((pitch, i) => {
-                          nodes.oscillator.frequency.linearRampToValueAtTime(Math.max(10, frequency + pitch), start + (stop - start) * (i + 1) / pitchBend.length);
+                          oscillator.frequency.linearRampToValueAtTime(Math.max(10, frequency + pitch), start + (stop - start) * (i + 1) / pitchBend.length);
                       });
                   },
               },
