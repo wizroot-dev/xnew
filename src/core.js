@@ -38,7 +38,7 @@ export function xnew(...args) {
 // function xfind (key)
 //
 // - key
-//     string (ex 'hoge', 'hoge fuga')
+//   - string (ex 'hoge', 'hoge fuga')
 //
 //----------------------------------------------------------------------------------------------------
 
@@ -62,7 +62,10 @@ export class Node {
         // internal data
         this._ = {};
 
-        this._.phase = 'initialize';  // initialize ->[stop ->start ->...] ->stop ->finalize
+        // phase (null ->stopped ->started ->... ->stopped ->pre finalized ->finalized)
+        this._.phase = null;  
+
+
         this._.tostart = false;
         this._.resolve = false;
 
@@ -70,40 +73,41 @@ export class Node {
         this._.listeners = new Map();
         
         // parent Node class
-        this.parent = parent instanceof Node ? parent : Node.current.node;
+        this._.parent = parent instanceof Node ? parent : Node.current.node;
 
-        this.parent?._.children.add(this);
+        this._.parent?._.children.add(this);
         this._.children = new Set();
 
         if (element instanceof Element || element === window) {
             this._.base = element;
-            this.element = this._.base;
+            this._.element = this._.base;
         } else if (isObject(element)) {
-            this._.base = this.parent ? this.parent.element : document.body;
-            this.element = createElementWithAttributes(this._.base, element);
+            this._.base = this._.parent ? this._.parent._.element : document.body;
+            this._.element = createElementWithAttributes(this._.base, element);
         } else {
-            this._.base = this.parent ? this.parent.element : document.body;
-            this.element = this._.base;
+            this._.base = this._.parent ? this._.parent._.element : document.body;
+            this._.element = this._.base;
         }
 
         // shared data
-        this._.shared = this.parent?._.shared ?? {};
+        this._.shared = this._.parent?._.shared ?? {};
 
         // auto start
         this.start();
 
+        // content
         if (content.length > 0) {
             if (isFunction(content[0])) {
                 this._extend(content[0], isObject(content[1]) ? content[1] : {});
-            } else if (isValidString(content[0]) && this._.base !== this.element) {
-                this.element.innerHTML = content[0];
+            } else if (isValidString(content[0]) && this._.base !== this._.element) {
+                this._.element.innerHTML = content[0];
             }
         }
 
         this.promise.then((response) => { this._.resolve = true; return response; });
 
         // animation
-        if (this.parent === null) {
+        if (this._.parent === null) {
             this._.frameId = requestAnimationFrame(ticker.bind(this));
 
             function ticker() {
@@ -112,21 +116,17 @@ export class Node {
             }
         }
 
-        this._.phase = 'stop';
+        this._.phase = 'stopped';
     }
     
-    //----------------------------------------------------------------------------------------------------
-    // basic
-    //----------------------------------------------------------------------------------------------------
-    
-    _extend(component, props) {
-        const defines = Node.wrap(this, component, Object.assign(props ?? {}, { node: this }));
+    _extend(Component, props) {
+        const defines = Node.wrap(this, Component, Object.assign(props, { node: this }));
         if (isObject(defines) === false) return;
-
+        
         Object.keys(defines).forEach((key) => {
             if (['promise', 'start', 'update', 'stop', 'finalize'].includes(key) || this[key] === undefined) {
                 const value = defines[key];
-                if ((key === 'promise' && value instanceof Promise)){
+                if ((key === 'promise' && value instanceof Promise)) {
                     this._.defines[key] = value;
                 } else if (['start', 'update', 'stop', 'finalize'].includes(key) && isFunction(value)) {
                     this._.defines[key] = value;
@@ -137,8 +137,7 @@ export class Node {
 
                     let descripters = {};
                     Object.keys(object).forEach((key) => {
-                        const value = object[key];
-                        descripters[key] = isFunction(value) ? (...args) => Node.wrap(this, value, ...args) : value;
+                        descripters[key] = isFunction(object[key]) ? (...args) => Node.wrap(this, object[key], ...args) : object[key];
                     });
                     Object.defineProperty(this, key, descripters);
                 } else {
@@ -148,6 +147,18 @@ export class Node {
                 console.error(`xnew define error: "${key}" already exists.`);
             }
         });
+    }
+
+    //----------------------------------------------------------------------------------------------------
+    // basic
+    //----------------------------------------------------------------------------------------------------
+    
+    get parent() {
+        return this._.parent;
+    }
+
+    get element() {
+        return this._.element;
     }
 
     get shared() {
@@ -167,81 +178,85 @@ export class Node {
     }
 
     _start() {
-        if (this._.phase === 'stop' && (this.parent === null || this.parent.isStarted()) && this._.resolve === true && this._.tostart === true) {
-            this._.phase = 'start';
+        if (this._.phase === 'stopped' && (this._.parent === null || this._.parent.isStarted()) && this._.resolve === true && this._.tostart === true) {
+            this._.phase = 'started';
             this._.children.forEach((node) => node._start());
             Node.wrap(this, this._.defines.start);
         }
     }
 
     _stop() {
-        if (this._.phase === 'start') {
-            this._.phase = 'stop';
+        if (this._.phase === 'started') {
+            this._.phase = 'stopped';
             this._.children.forEach((node) => node._stop());
             Node.wrap(this, this._.defines.stop);
         }
     }
 
     _update() {
-        if (this._.phase === 'finalize') return;
+        if (this._.phase === 'started' || this._.phase === 'stopped') {
+            this._.tostart === true ? this._start() : this._stop();
 
-        this._.tostart === true ? this._start() : this._stop();
+            this._.children.forEach((node) => node._update());
 
-        this._.children.forEach((node) => node._update());
-    
-        if (this._.phase === 'start') {
-            Node.wrap(this, this._.defines.update);
+            if (this._.phase === 'started') {
+                Node.wrap(this, this._.defines.update);
+            }
         }
     }
 
     finalize() {
         this._stop();
-        if (this._.phase === 'finalize') return;
 
-        this._.phase = 'finalize';
-        [...this._.children].forEach((node) => node.finalize());
-        
-        Node.wrap(this, this._.defines.finalize);
+        if (this._.phase === 'stopped') {
+            this._.phase = 'pre finalized';
 
-        // key
-        this.key = '';
+            [...this._.children].forEach((node) => node.finalize());
+            
+            Node.wrap(this, this._.defines.finalize);
 
-        // event
-        this.off();
-        
-        // animation
-        if (this._.frameId) {
-            cancelAnimationFrame(this._.frameId);
-        }
-        
-        // timer
-        this._.timerIds?.forEach((id) => {
-            this.clearTimer(id);
-        });
+            // key
+            this.key = '';
 
-        // element
-        if (this.element !== null && this.element !== this._.base) {
-            let target = this.element;
-            while (target.parentElement !== null && target.parentElement !== this._.base) { target = target.parentElement; }
-            if (target.parentElement === this._.base) {
-                this._.base.removeChild(target);
+            // event
+            this.off();
+            
+            // animation
+            if (this._.frameId) {
+                cancelAnimationFrame(this._.frameId);
             }
+            
+            // timer
+            this._.timerIds?.forEach((id) => {
+                this.clearTimer(id);
+            });
+
+            // element
+            if (this._.element !== null && this._.element !== this._.base) {
+                let target = this._.element;
+                while (target.parentElement !== null && target.parentElement !== this._.base) { target = target.parentElement; }
+                if (target.parentElement === this._.base) {
+                    this._.base.removeChild(target);
+                }
+            }
+            
+            // relation
+            this._.parent?._.children.delete(this);
+
+            this._.phase = 'finalized';
         }
-        
-        // relation
-        this.parent?._.children.delete(this);
     }
 
     isStarted() {
-        return this._.phase === 'start';
+        return this._.phase === 'started';
     }
 
     isStopped() {
-        return this._.phase !== 'start';
+        return this._.phase !== 'started';
     }
 
     isFinalized() {
-        return this._.phase === 'finalize';
+        return this._.phase === 'finalized';
     }
 
     //----------------------------------------------------------------------------------------------------
@@ -249,8 +264,8 @@ export class Node {
     //----------------------------------------------------------------------------------------------------        
   
     nestElement(attributes, inner) {
-        if (this._.phase === 'initialize') {
-            this.element = createElementWithAttributes(this.element, attributes, inner);
+        if (this._.phase === null) {
+            this._.element = createElementWithAttributes(this._.element, attributes, inner);
         }
     }
 
@@ -260,24 +275,24 @@ export class Node {
   
     static timerId = 0;
   
-    setTimer(delay, callback, repeat = false) {
-        if (this._.phase === 'finalize') return null;
+    setTimer(callback, delay = 1, repeat = false) {
+        if (this._.phase === null || this._.phase === 'stopped' || this._.phase === 'started') {
+            const data = { id: Node.timerId++, timeout: null };
 
-        const data = { id: Node.timerId++, timeout: null };
+            const func = () => {
+                Node.wrap(this, callback);
+                if (repeat) {
+                    data.timeout = setTimeout(func, delay);
+                } else {
+                    this._.timerIds.delete(data.id);
+                }
+            };
+            data.timeout = setTimeout(func, delay);
 
-        const func = () => {
-            Node.wrap(this, callback);
-            if (repeat) {
-                data.timeout = setTimeout(func, delay);
-            } else {
-                this._.timerIds.delete(data.id);
-            }
-        };
-        data.timeout = setTimeout(func, delay);
-
-        this._.timerIds = this._.timerIds ?? new Map();
-        this._.timerIds.set(data.id, data);
-        return data.id;
+            this._.timerIds = this._.timerIds ?? new Map();
+            this._.timerIds.set(data.id, data);
+            return data.id;
+        }
     }
 
     clearTimer(id) {
@@ -347,7 +362,7 @@ export class Node {
         if (this._.listeners.has(type) === false) this._.listeners.set(type, new Set());
         if (this._.listeners.get(type).has(listener) === false) {
             this._.listeners.get(type).add(listener);
-            this.element?.addEventListener(type, this._subListener(type, listener), options ?? { passive: false });
+            this._.element?.addEventListener(type, this._subListener(type, listener), options ?? { passive: false });
         }
         if (Node.typeMap.has(type) === false) Node.typeMap.set(type, new Set());
         if (Node.typeMap.get(type).has(this) === false) {
@@ -369,7 +384,7 @@ export class Node {
                 this._.listeners.get(type).delete(listener);
                 if (this._.listeners.get(type).size === 0) this._.listeners.delete(type);
 
-                this.element?.removeEventListener(type, this._subListener(type, listener));
+                this._.element?.removeEventListener(type, this._subListener(type, listener));
             }
         } else if (listener === null || listener === undefined) {
             if (this._.listeners.has(type) === true) {
@@ -385,15 +400,15 @@ export class Node {
     }
 
     emit(type, ...args) {
-        // if (this._.phase === 'finalize') return;
-
-        if (isValidString(type) === true) {
-            if (type[0] === '#') {
-                if (Node.typeMap.has(type)) {
-                    Node.typeMap.get(type).forEach((node) => node._emit(type, ...args));
+        if (this._.phase !== 'finalized') {
+            if (isValidString(type) === true) {
+                if (type[0] === '#') {
+                    if (Node.typeMap.has(type)) {
+                        Node.typeMap.get(type).forEach((node) => node._emit(type, ...args));
+                    }
+                } else {
+                    this._emit(type, ...args);
                 }
-            } else {
-                this._emit(type, ...args);
             }
         }
     }

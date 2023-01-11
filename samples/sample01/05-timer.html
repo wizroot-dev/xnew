@@ -20,13 +20,13 @@
             node.element.textContent = 'counter: 0';
 
             let counter = 0;
-            const id = node.setTimer(1000, () => {
+            const id = node.setTimer(() => {
                 node.element.textContent = 'counter: ' + (++counter);
-            }, true);
+            }, 1000, true);
 
-            node.setTimer(5000, () => {
+            node.setTimer(() => {
                 node.clearTimer(id);
-            });
+            }, 5000);
         });
     </script>
 </body>

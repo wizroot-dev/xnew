@@ -45,15 +45,12 @@ Here, we will create a dynamic scene with a rendering library.
 <html>
 <head>
     <meta charset="utf-8">
-    <script src="https://unpkg.com/xnew@0.2.x/dist/xnew.js"></script>
+    <script src="https://unpkg.com/xnew@0.3.x/dist/xnew.js"></script>
     <script src="https://unpkg.com/three@0.142.x/build/three.min.js"></script>
     <script src="script.js"></script>
-    <style>
-        body { height: 100vh; margin: 0; }
-    </style>
 </head>
   
-<body>
+<body style="height: 100vh; margin: 0">
     <script>
         window.addEventListener('DOMContentLoaded', () => {
             xnew(Main);
@@ -66,7 +63,7 @@ Here, we will create a dynamic scene with a rendering library.
 #### script.js
 ```
 function Main({ node }) {
-    // create a screen (xn.Screen defines a canvas in it)
+    // create a screen (xn.Screen defines a canvas)
     const screen = xnew(xn.Screen, { width: 800, height: 450 });
 
     const renderer = new THREE.WebGLRenderer({ canvas: screen.canvas });
@@ -349,14 +346,14 @@ By using a timer, you can set a function to be executed after a specified time.
 ```
 xnew(({ node }) =>  {
     // call only once (1000ms delay)
-    const id1 = node.setTimer(1000, () => {
+    const id1 = node.setTimer(() => {
         // ...
-    });
+    }, 1000);
 
     // call repeatedly (1000ms interval)
-    const id2 = node.setTimer(1000, () => {
+    const id2 = node.setTimer(() => {
         // ...
-    }, true);
+    }, 1000, true);
 });
 
 ```
